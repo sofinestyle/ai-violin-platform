@@ -316,3 +316,22 @@ Practice Session Service 负责：
 - 三者通过 practiceSessionId 关联。
 
 不新增新的系统一级架构层，只补充职责说明。
+
+### 11.7 Practice Media 服务职责
+
+Practice Media Service 负责：
+
+- 接收音视频文件
+- 校验格式、大小和时长
+- 提取媒体元数据
+- 管理 fileStatus
+- 触发基础媒体预处理
+- 提供受控媒体访问地址
+- 将媒体关联到 practiceSessionId
+
+- Practice Media Service 不管理练习主业务状态规则。
+- Practice Session Service 管理练习生命周期。
+- Analysis Task Service 管理 AI 分析任务。
+- Practice Media Service 只在约定节点通知或触发状态联动。
+
+不新增新的系统一级架构层。

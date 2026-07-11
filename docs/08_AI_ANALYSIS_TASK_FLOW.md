@@ -1587,3 +1587,386 @@ AI 分析必须基于创建时确定的曲谱标准数据。用户选错曲谱�
 - 创建接口支持幂等。
 - 重复结束请求安全返回。
 - deleted_at 和 idempotency_key 暂列待确认项。
+
+---
+
+## 22. Practice Media API 设计
+
+### 22.1 Practice Media 资源职责
+
+Practice Media 负责一次练习产生的音频、视频文件及其上传、校验、元数据和处理状态。
+
+负责：
+
+- 音频文件上传
+- 视频文件上传
+- 文件格式校验
+- 文件大小校验
+- 媒体时长校验
+- 视频方向和分辨率记录
+- 上传和预处理状态管理
+- 将媒体关联到 practiceSessionId
+- 为 AI 分析提供可信媒体地址
+
+不负责：
+
+- 创建 Practice Session
+- 管理练习业务生命周期
+- 执行音准、节奏、姿势和运弓分析
+- 保存 AI 分析结果
+- 生成自然语言反馈
+- 管理曲谱
+
+统一前缀：
+
+`/api/v1/practice-media`
+
+### 22.2 第一版上传方式
+
+第一版采用 `multipart/form-data`，APP 将音频和视频上传至 FastAPI 后端。
+
+第一版暂不采用：
+
+- 客户端直传云存储
+- 分片上传
+- 断点续传
+- WebSocket 上传
+- 后台自动同步相册文件
+
+后续当视频文件体积或并发量明显增加时，再考虑云存储直传和分片上传。
+
+### 22.3 上传媒体接口
+
+`POST /api/v1/practice-media`
+
+请求类型：`multipart/form-data`
+
+| 字段 | 是否必填 | 说明 |
+|---|---|---|
+| practiceSessionId | 是 | 关联 Practice Session |
+| audioFile | 正常流程必填 | 练习音频 |
+| videoFile | 正常流程必填 | 练习视频 |
+| videoOrientation | 是 | 视频方向 |
+| durationSeconds | 是 | APP 记录的练习时长 |
+
+第一版 MVP 正常情况下同时上传音频和视频。
+
+后端负责：
+
+- 校验用户已登录
+- 校验 Practice Session 属于当前用户
+- 校验 Practice Session 当前为 uploading
+- 校验音视频格式
+- 校验文件大小
+- 保存文件
+- 创建或更新 practice_media
+- 提取媒体元数据
+- 更新 fileStatus
+
+### 22.4 一个接口同时上传音频和视频
+
+第一版采用 `POST /api/v1/practice-media`，不拆分为：
+
+- `POST /api/v1/practice-media/audio`
+- `POST /api/v1/practice-media/video`
+
+原因：
+
+- 一次练习对应一组媒体。
+- 当前 practice_media 设计同时保存音频和视频。
+- 减少接口数量。
+- 更容易判断一次练习的媒体是否完整。
+- 后端内部仍可分别存储和处理音频、视频。
+
+### 22.5 上传成功返回
+
+返回至少包括：
+
+- id
+- practiceSessionId
+- audioFileUrl
+- videoFileUrl
+- videoOrientation
+- videoWidth
+- videoHeight
+- durationSeconds
+- fileStatus
+
+返回示例：
+
+```json
+{
+  "success": true,
+  "code": 0,
+  "message": "媒体上传成功",
+  "data": {
+    "id": "uuid",
+    "practiceSessionId": "uuid",
+    "audioFileUrl": "https://example.com/media/audio/xxx.m4a",
+    "videoFileUrl": "https://example.com/media/video/xxx.mp4",
+    "videoOrientation": "landscape_left",
+    "videoWidth": 1920,
+    "videoHeight": 1080,
+    "durationSeconds": 126,
+    "fileStatus": "processing"
+  }
+}
+```
+
+媒体上传成功不等于已经可供 AI 分析。
+
+媒体状态流程为：
+
+```text
+uploading
+↓
+uploaded
+↓
+processing
+↓
+ready
+```
+
+失败时进入 `failed`。
+
+### 22.6 媒体状态查询接口
+
+`GET /api/v1/practice-media/{mediaId}`
+
+用途：
+
+- 查询上传结果
+- 查询预处理进度
+- 查询媒体是否可供 AI 分析
+- 查看媒体校验警告
+- 查看失败原因
+
+返回至少包括：
+
+- id
+- practiceSessionId
+- audioFileUrl
+- videoFileUrl
+- videoOrientation
+- videoWidth
+- videoHeight
+- durationSeconds
+- fileStatus
+- warnings
+
+### 22.7 按 Practice Session 查询媒体
+
+`GET /api/v1/practice-sessions/{practiceSessionId}/media`
+
+该接口表示查询某次练习所关联的 Practice Media，属于合法的嵌套资源 API，不属于页面 API。
+
+返回内容与 `GET /api/v1/practice-media/{mediaId}` 基本一致。
+
+用途：
+
+- APP 只有 practiceSessionId 时查询媒体状态
+- Practice Session 详情补充媒体信息
+- 后端服务按练习查找媒体
+
+### 22.8 文件格式规范
+
+第一版支持音频格式：
+
+- m4a
+- aac
+- wav
+
+音频内部预处理统一为：
+
+- WAV
+- 单声道
+- 44.1 kHz
+
+第一版支持视频格式：
+
+- mp4
+- mov
+
+视频内部预处理统一为：
+
+- MP4
+- H.264
+
+第一版不支持过多格式，避免兼容性和测试范围扩大。
+
+### 22.9 文件大小和时长限制
+
+限制值必须使用后端配置，不在业务代码中散落写死。
+
+第一版初步建议：
+
+- 单次练习最长：10 分钟
+- 音频最大：100 MB
+- 视频最大：1 GB
+
+- 第一版内置曲谱较短，实际练习通常为 1—5 分钟。
+- 超过限制时必须返回明确错误码。
+- 后续可根据存储成本和移动网络情况调整配置。
+
+### 22.10 音频质量校验
+
+上传后进行基础检查：
+
+- 文件是否可读取
+- 是否存在有效声音
+- 时长是否合法
+- 音量是否过低
+- 是否存在严重削波
+- 音频时长是否与视频基本一致
+- 是否能够转换为标准分析格式
+
+第一版仅做基础可用性判断，不做复杂音质评分。
+
+### 22.11 视频质量校验
+
+上传后进行基础检查：
+
+- 文件是否可读取
+- 视频方向是否有效
+- 宽高是否有效
+- 帧率是否有效
+- 时长是否合法
+- 是否可以正常抽帧
+- 画面是否过暗
+- 人体、小提琴或琴弓是否完全不可见
+- 是否能够转换为标准分析格式
+
+第一版仅判断是否具备基础分析条件。
+
+### 22.12 部分媒体可用策略
+
+音频可用、视频不可用时，可以执行：
+
+- pitch_analysis
+- rhythm_analysis
+
+不能执行：
+
+- posture_analysis
+- bowing_analysis
+
+最终 AI 任务可以进入 `partially_completed`。
+
+视频可用、音频不可用时，可以执行：
+
+- posture_analysis
+- bowing_analysis
+
+不能执行：
+
+- pitch_analysis
+- rhythm_analysis
+
+音频和视频均不可用时：
+
+- practice_media.fileStatus = failed
+- practice_session.status = failed
+- 不得创建正常 AI 分析任务
+
+### 22.13 Practice Session 状态联动
+
+媒体上传开始：
+
+`practiceSession.status = uploading`
+
+媒体上传和基础校验完成：
+
+- `practiceMedia.fileStatus = ready`
+- `practiceSession.status = submitted`
+
+媒体完全失败：
+
+- `practiceMedia.fileStatus = failed`
+- `practiceSession.status = failed`
+
+只有媒体达到可分析条件后，才允许创建 `POST /api/v1/analysis/tasks`。
+
+部分媒体可用时，应允许创建部分分析任务，并记录警告。
+
+### 22.14 重复上传与替换规则
+
+- 一个 Practice Session 只保留一条有效 practice_media。
+- 上传失败时允许重传。
+- AI 分析任务尚未创建前，可以替换失败或不完整媒体。
+- AI 分析已经开始后，不允许替换媒体。
+- 如用户需要重新录制，应创建新的 Practice Session。
+
+重复上传请求支持 `Idempotency-Key: uuid`。相同用户、相同 Practice Session、相同 Key 的重复请求不得生成多条媒体记录。
+
+### 22.15 单独删除媒体
+
+第一版不开放：
+
+`DELETE /api/v1/practice-media/{mediaId}`
+
+原因：
+
+- Practice Media 与练习、AI 任务、结果强关联。
+- 单独删除可能造成数据不一致。
+- 用户删除练习时，由 Practice Session 软删除流程统一处理。
+- 实际文件后续由统一清理任务处理。
+
+### 22.16 文件地址与访问安全
+
+禁止 API 返回服务器真实本地文件路径，例如：
+
+`/var/www/uploads/user123/video.mp4`
+
+API 只能返回：
+
+- 受控媒体访问 URL
+- 临时签名 URL
+- 后端授权下载地址
+
+安全要求：
+
+- 用户只能访问自己的练习媒体。
+- 正式环境使用 HTTPS。
+- 文件 URL 不得永久公开。
+- AI Service 使用内部授权方式读取文件。
+- 不得将存储密钥或服务器路径返回前端。
+
+### 22.17 Practice Media 错误码
+
+| 错误码 | 含义 |
+|---|---|
+| 3001 | 媒体上传失败 |
+| 3002 | 媒体格式不支持 |
+| 3003 | 文件大小超过限制 |
+| 3004 | 媒体时长无效 |
+| 3005 | 音频文件不可用 |
+| 3006 | 视频文件不可用 |
+| 3007 | 音视频时长差异过大 |
+| 3008 | 媒体记录不存在 |
+| 3009 | 无权访问该媒体 |
+| 3010 | 当前练习状态不允许上传 |
+| 3011 | AI 分析开始后不可替换媒体 |
+| 3012 | 媒体尚未准备完成 |
+
+错误响应继续使用 Phase 6.1 统一格式。
+
+### 22.18 Practice Media API Freeze
+
+本阶段冻结：
+
+- Practice Media 独立负责音视频文件。
+- 上传接口为 POST /api/v1/practice-media。
+- 第一版一个接口同时上传音频和视频。
+- 使用 multipart/form-data。
+- 支持 m4a、aac、wav、mp4、mov。
+- 后端转换为统一分析格式。
+- 提供按 mediaId 查询接口。
+- 提供按 practiceSessionId 查询媒体接口。
+- 上传完成后进行基础质量校验。
+- 音频或视频单独不可用时允许部分分析。
+- 两类媒体均不可用时禁止正常分析。
+- Practice Session 与 Practice Media 状态联动。
+- AI 分析开始后不得替换媒体。
+- 第一版不开放单独删除媒体接口。
+- 文件地址必须受权限控制。
+- 额外媒体元数据字段暂列待确认项。

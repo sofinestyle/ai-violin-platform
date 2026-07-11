@@ -17,7 +17,7 @@
 
 当前处于：
 
-> Phase 6.2 第三部分之一：Practice Sessions API 设计已完成并 Freeze
+> Phase 6.2 第三部分之二：Practice Media API 设计已完成并 Freeze
 
 ---
 
@@ -152,7 +152,23 @@ docs/07_DATABASE_SCHEMA.md
 - 重复请求处理
 - Practice Sessions 错误码
 
-### 2.9 长期目标
+### 2.9 Phase 6.2 第三部分之二已完成内容
+
+- Practice Media 资源职责
+- multipart/form-data 上传
+- 音频和视频统一上传接口
+- 媒体状态查询接口
+- 按 Practice Session 查询媒体接口
+- 音视频格式规范
+- 文件大小与时长限制原则
+- 基础媒体质量校验
+- 部分媒体可用策略
+- Practice Session 状态联动
+- 重传和替换规则
+- 文件访问安全
+- Practice Media 错误码
+
+### 2.10 长期目标
 
 项目长期目标不是单一软件，而是构建 AI Music Platform。
 
@@ -167,7 +183,7 @@ docs/07_DATABASE_SCHEMA.md
 
 ---
 
-### 2.10 工作方式
+### 2.11 工作方式
 
 项目采用文档驱动开发：
 
@@ -187,7 +203,7 @@ Codex 开发
 
 ---
 
-### 2.11 角色分工
+### 2.12 角色分工
 
 项目经理：用户本人。
 
@@ -211,7 +227,7 @@ Codex 承担：
 
 ---
 
-### 2.12 文档管理方式
+### 2.13 文档管理方式
 
 由于 ChatGPT 对话会被自动压缩，因此后续以 GitHub 中的 Markdown 文档作为项目长期记忆。
 
@@ -252,7 +268,7 @@ Codex 更新 GitHub 文档
 
 下一阶段为：
 
-> Phase 6.2 第三部分之二：Practice Media API 设计
+> Phase 6.2 第四部分：Analysis Tasks + Analysis Results + Feedbacks API 设计
 
 ---
 

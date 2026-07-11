@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## 2026-07-11｜Phase 6.2 第三部分之二
+
+### 更新
+
+- docs/03_SYSTEM_ARCHITECTURE.md
+- docs/04_AI_TECHNICAL_ROUTE.md
+- docs/05_CURRENT_HANDOFF.md
+- docs/06_MVP_USER_FLOW.md
+- docs/07_DATABASE_SCHEMA.md
+- docs/08_AI_ANALYSIS_TASK_FLOW.md
+- CHANGELOG.md
+
+### Freeze
+
+- Practice Media 独立负责练习音视频文件
+- POST /api/v1/practice-media
+- 第一版同一接口上传音频和视频
+- 使用 multipart/form-data
+- 支持 m4a、aac、wav、mp4、mov
+- 音频统一转换为 WAV、单声道、44.1 kHz
+- 视频统一转换为 MP4、H.264
+- GET /api/v1/practice-media/{mediaId}
+- GET /api/v1/practice-sessions/{practiceSessionId}/media
+- 上传后进行基础质量校验
+- 支持部分媒体可用和部分分析
+- 两类媒体均不可用时禁止正常 AI 分析
+- Practice Session 与 Practice Media 状态联动
+- AI 分析开始后不得替换媒体
+- 第一版不开放单独删除媒体接口
+- 媒体访问必须进行权限控制
+- 额外媒体元数据字段暂列待确认项
+
 ## 2026-07-11｜Phase 6.2 第三部分之一
 
 ### 更新

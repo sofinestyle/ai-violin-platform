@@ -181,11 +181,19 @@
 ↓
 录制音频和视频
 ↓
-结束录制
+用户结束录制
 ↓
 Practice Session 进入 uploading
 ↓
-上传 Practice Media
+APP 上传音频和视频
+↓
+创建或更新 Practice Media
+↓
+后端进行格式和质量校验
+↓
+Practice Media 进入 ready
+↓
+Practice Session 进入 submitted
 ↓
 创建 Analysis Task
 ↓
@@ -195,6 +203,22 @@ Practice Session 进入 uploading
 - APP 开始录制前必须先获取 practiceSessionId。
 - 后续媒体上传和 AI 分析均关联该 ID。
 - 用户取消未上传的练习时采用软删除。
+
+异常流程：
+
+```text
+仅音频可用或仅视频可用
+↓
+允许部分分析
+↓
+结果页提示部分模块未生成
+
+音频和视频均不可用
+↓
+上传失败
+↓
+提示用户重新录制
+```
 
 ---
 

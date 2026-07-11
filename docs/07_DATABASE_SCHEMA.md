@@ -349,6 +349,41 @@ score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。te
 | ready | 可分析 |
 | failed | 失败 |
 
+### 9.5 Practice Media API 一致性说明
+
+现有字段基本满足第一版：
+
+- id
+- practice_session_id
+- audio_file_url
+- video_file_url
+- video_orientation
+- video_width
+- video_height
+- duration_seconds
+- file_status
+- created_at
+- updated_at
+
+以下字段列为后续待确认项，不直接加入数据库：
+
+| 字段 | 用途 |
+|---|---|
+| audio_format | 原始或标准音频格式 |
+| video_format | 原始或标准视频格式 |
+| audio_size_bytes | 音频文件大小 |
+| video_size_bytes | 视频文件大小 |
+| video_fps | 视频帧率 |
+| audio_sample_rate | 音频采样率 |
+| quality_warnings | 质量警告，建议 JSONB |
+| error_message | 媒体处理失败原因 |
+| checksum | 文件完整性校验 |
+
+- 本次不增加任何字段。
+- 本次不执行数据库迁移。
+- 后续在数据库统一核对阶段决定最小必要字段。
+- 不得一次性加入全部待确认字段。
+
 ---
 
 ## 10. ai_analysis_tasks AI 分析任务表
