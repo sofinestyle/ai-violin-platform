@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 2026-07-12｜Phase 6.3
+
+### 更新
+
+- docs/05_CURRENT_HANDOFF.md
+- docs/07_DATABASE_SCHEMA.md
+- docs/08_AI_ANALYSIS_TASK_FLOW.md
+- CHANGELOG.md
+
+### Freeze
+
+- API 与数据库一致性完成
+- Analysis Results 改为统一 JSONB
+- Feedback 数据结构统一
+- MVP 最小字段确认
+- 错误码统一
+- Phase 6 全部完成
+
 ## 2026-07-11｜Phase 6.2 第四部分
 
 ### 更新

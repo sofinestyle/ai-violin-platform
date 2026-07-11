@@ -123,6 +123,7 @@ score_notes
 | id | UUID | 资料 ID |
 | user_id | UUID | 关联 users.id |
 | nickname | VARCHAR | 昵称 |
+| avatar_url | TEXT | 用户头像地址，可为空 |
 | learning_stage | VARCHAR | 学习阶段 |
 | practice_goal | VARCHAR | 练习目标 |
 | total_practice_days | INTEGER | 累计练习天数 |
@@ -325,8 +326,14 @@ score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。te
 | video_orientation | VARCHAR | 视频方向 |
 | video_width | INTEGER | 视频宽度 |
 | video_height | INTEGER | 视频高度 |
+| audio_format | VARCHAR | 音频格式 |
+| video_format | VARCHAR | 视频格式 |
+| video_fps | NUMERIC | 视频帧率 |
+| audio_sample_rate | INTEGER | 音频采样率 |
 | duration_seconds | INTEGER | 媒体时长 |
 | file_status | VARCHAR | 文件状态 |
+| quality_warnings | JSONB | 媒体质量警告 |
+| error_message | TEXT | 媒体处理失败原因 |
 | created_at | TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | 更新时间 |
 
@@ -365,24 +372,16 @@ score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。te
 - created_at
 - updated_at
 
-以下字段列为后续待确认项，不直接加入数据库：
+以下字段继续列为后续待确认项，不直接加入数据库：
 
 | 字段 | 用途 |
 |---|---|
-| audio_format | 原始或标准音频格式 |
-| video_format | 原始或标准视频格式 |
 | audio_size_bytes | 音频文件大小 |
 | video_size_bytes | 视频文件大小 |
-| video_fps | 视频帧率 |
-| audio_sample_rate | 音频采样率 |
-| quality_warnings | 质量警告，建议 JSONB |
-| error_message | 媒体处理失败原因 |
 | checksum | 文件完整性校验 |
 
-- 本次不增加任何字段。
-- 本次不执行数据库迁移。
-- 后续在数据库统一核对阶段决定最小必要字段。
-- 不得一次性加入全部待确认字段。
+- audio_format、video_format、video_fps、audio_sample_rate、quality_warnings、error_message 为 MVP 最小必要字段。
+- 本次仅更新数据库设计文档，不执行数据库迁移。
 
 ---
 
@@ -407,6 +406,7 @@ score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。te
 | max_retries | INTEGER | 最大重试次数，默认值由系统配置确定 |
 | started_at | TIMESTAMP | 开始时间 |
 | finished_at | TIMESTAMP | 结束时间 |
+| error_code | INTEGER | 任务错误码，可为空 |
 | error_message | TEXT | 失败原因 |
 | created_at | TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | 更新时间 |
@@ -452,9 +452,9 @@ score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。te
 
 以上字段仅为数据库设计说明；本次不执行数据库迁移、不生成实际 SQL，也不增加额外表。
 
-### 10.6 Analysis Tasks API 待确认项
+### 10.6 Analysis Tasks API 最终确认
 
-后续统一核对以下字段的最小必要集合：
+以下字段确认为 MVP 必要字段：
 
 - parent_task_id
 - progress
@@ -464,7 +464,7 @@ score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。te
 - error_code
 - error_message
 
-本节仅记录待确认项，本次不增加字段。
+以上字段用于主子任务关系、进度展示、有限重试和错误记录。
 
 ---
 
@@ -481,42 +481,21 @@ score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。te
 | id | UUID | 结果 ID |
 | practice_session_id | UUID | 关联 practice_sessions.id |
 | task_id | UUID | 关联 ai_analysis_tasks.id |
-| pitch_score | INTEGER | 音准评分 |
-| rhythm_score | INTEGER | 节奏评分 |
-| posture_score | INTEGER | 姿势评分 |
-| bowing_score | INTEGER | 运弓评分 |
-| overall_score | INTEGER | 综合评分 |
-| pitch_issues | JSONB | 音准问题 |
-| rhythm_issues | JSONB | 节奏问题 |
-| posture_issues | JSONB | 姿势问题 |
-| bowing_issues | JSONB | 运弓问题 |
+| overall_rating | VARCHAR | 综合等级 |
+| module_results | JSONB | 各分析模块的状态、评分、等级、置信度、问题和警告 |
+| summary | JSONB | 成功模块、失败模块和汇总警告 |
 | raw_result | JSONB | AI 原始结果 |
+| model_versions | JSONB | 各分析模块使用的模型版本 |
 | created_at | TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | 更新时间 |
 
-### 11.3 评分说明
+### 11.3 统一 JSON 结构说明
 
-第一版评分建议使用 0 到 100 分。
-
-前端展示不一定直接显示数字，可转换为：
-
-| 分数范围 | 前端展示 |
-|---|---|
-| 85-100 | 优秀 |
-| 65-84 | 良好 |
-| 0-64 | 需要改进 |
-
-### 11.4 Analysis Results API 待确认内容
-
-- 模块状态结构
-- 模块评分结构
-- overall_rating
-- 是否需要 overall_score
-- 模型版本信息
-- 问题项 JSONB 结构
-- warnings 结构
-
-本节仅记录待确认内容，本次不增加字段。
+- module_results 使用统一 JSONB 结构保存音准、节奏、姿势、运弓及未来模块结果。
+- summary 使用 JSONB 保存成功模块、失败模块和汇总警告。
+- raw_result 仅供内部分析和调试，不直接返回普通用户端。
+- model_versions 记录各模块模型版本。
+- 后续增加 vibrato、expression 等模块时，无需修改数据库结构。
 
 ---
 
@@ -533,27 +512,19 @@ score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。te
 | id | UUID | 反馈 ID |
 | practice_session_id | UUID | 关联 practice_sessions.id |
 | analysis_result_id | UUID | 关联 ai_analysis_results.id |
-| summary_text | TEXT | 本次练习总评 |
-| main_issues | TEXT | 主要问题 |
-| improvement_advice | TEXT | 改进建议 |
-| next_practice_focus | TEXT | 下次练习重点 |
-| encouragement_text | TEXT | 鼓励性反馈 |
+| headline | TEXT | 反馈标题 |
+| strengths | JSONB | 本次练习优点列表 |
+| improvements | JSONB | 待改进问题列表 |
+| next_practice_focus | JSONB | 下一次练习重点列表 |
+| encouragement | TEXT | 鼓励性总结 |
+| llm_model | VARCHAR | 生成反馈使用的 LLM 模型 |
+| prompt_version | VARCHAR | 反馈 Prompt 版本 |
 | created_at | TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | 更新时间 |
 
-### 12.3 Analysis Feedbacks API 待确认内容
+### 12.3 Analysis Feedbacks API 一致性说明
 
-- headline
-- strengths
-- improvements
-- next_practice_focus
-- encouragement
-- llm_model
-- prompt_version
-
-本节仅记录待确认内容，本次不增加字段。
-
-以上 Analysis API 数据库扩展项将在后续统一进行最小必要字段核对。本次不执行数据库迁移，不得一次性加入全部待确认字段。
+以上字段与 Analysis Feedbacks API 返回结构一致。本次仅更新数据库设计文档，不执行数据库迁移。
 
 ---
 
