@@ -2404,3 +2404,65 @@ AI Worker 和内部服务使用内部服务身份，不使用普通用户 Access
 - 所有 Analysis API 需要登录。
 - 用户只能访问本人分析数据。
 - 数据库扩展字段暂列待确认项。
+
+---
+
+## Phase 7.1：AI Module Contract
+
+本章节补充 AI Service 内部模块运行契约。该契约保持与既有 Task Flow 一致，不修改状态机、API、Pipeline 或 Analysis Flow。
+
+### Input Contract
+
+所有模块使用统一输入上下文，至少包括：
+
+- `taskId`
+- `practiceSessionId`
+- `scoreReference`
+- `media`
+- `userContext`
+- `execution`
+
+`media` 必须来自 Media Preprocessing 的输出。模块不得直接读取客户端原始媒体，也不得信任客户端提供的媒体元数据。
+
+### Output Contract
+
+模块输出必须与 Phase 6 已定义的 Analysis Result 结构一致，且不得修改字段名称：
+
+- `status`
+- `score`
+- `rating`
+- `confidence`
+- `issues`
+- `warnings`
+- `rawResult`
+
+模块内部状态可为 `completed`、`failed`、`insufficient_data` 或 `cancelled`。其中 `insufficient_data` 表示数据不足，不等同于 `failed`，且不改变既有主任务状态机。
+
+`score` 表示用户表现，`confidence` 表示分析可信度；两者不得混用，且不得因低 `confidence` 自动修改 `score`。用户练习问题写入 `issues`，噪音、光线、拍摄角度或视频完整性等可靠性提醒写入 `warnings`。
+
+`rawResult` 仅用于内部保存人体或手部关键点、琴弓轨迹、模型中间输出和调试信息，APP 不直接读取。
+
+### Error Contract
+
+AI Service 内部错误分类统一为：
+
+- `input_error`
+- `media_error`
+- `quality_error`
+- `model_error`
+- `timeout_error`
+- `persistence_error`
+- `internal_error`
+
+该错误分类仅用于内部记录、排障和重试判断，不替代既有 Analysis API 错误码。
+
+### Retry Contract
+
+模块执行实例由 `taskId + module + attempt` 标识。
+
+- 同一执行实例重复调度时必须保持幂等。
+- 成功结果不得被失败结果覆盖。
+- 仅失败、超时或明确标记为可重试的模块可以进入既有单模块重试流程。
+- 重试后由既有主任务流程重新计算有效模块结果和终态。
+
+每个模块结果可在内部 `runtimeMetadata` 保存 `modelName`、`modelVersion`、`ruleVersion`、`pipelineVersion` 和 `processingTimeMs`。第一版仅作为 JSONB 内部元数据，不新增数据库字段或对外 API 字段。

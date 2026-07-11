@@ -17,7 +17,7 @@
 
 当前处于：
 
-> Phase 6.3：API 与数据库一致性核对已完成并 Freeze
+> Phase 7.1：AI 模块公共规范与运行契约已完成（待 Freeze）
 
 ---
 
@@ -195,7 +195,17 @@ docs/07_DATABASE_SCHEMA.md
 - 最终错误码规范
 - MVP 最小数据库字段确认
 
-### 2.12 长期目标
+### 2.12 Phase 7.1 已完成内容
+
+- AI Module Contract
+- Module Boundary
+- Module Input
+- Module Output
+- Score / Confidence
+- Issue / Warning
+- Runtime Metadata
+
+### 2.13 长期目标
 
 项目长期目标不是单一软件，而是构建 AI Music Platform。
 
@@ -210,7 +220,7 @@ docs/07_DATABASE_SCHEMA.md
 
 ---
 
-### 2.13 工作方式
+### 2.14 工作方式
 
 项目采用文档驱动开发：
 
@@ -230,7 +240,7 @@ Codex 开发
 
 ---
 
-### 2.14 角色分工
+### 2.15 角色分工
 
 项目经理：用户本人。
 
@@ -254,7 +264,7 @@ Codex 承担：
 
 ---
 
-### 2.15 文档管理方式
+### 2.16 文档管理方式
 
 由于 ChatGPT 对话会被自动压缩，因此后续以 GitHub 中的 Markdown 文档作为项目长期记忆。
 
@@ -295,9 +305,9 @@ Codex 更新 GitHub 文档
 
 下一阶段为：
 
-> Phase 7：AI 模块详细设计
+> Phase 7.2：媒体预处理模块详细设计
 
-Phase 6 已全部完成，业务 API、数据库设计已形成统一规范。下一阶段开始进入 AI 模块内部设计。
+Phase 7.1 已完成 AI 模块公共规范与运行契约同步，待 Freeze 后进入媒体预处理模块详细设计。
 
 ---
 
@@ -340,22 +350,17 @@ Phase 6 已全部完成，业务 API、数据库设计已形成统一规范。�
 - 已完成 AI 异步任务、AI Pipeline、统一结构化结果和 LLM 职责边界设计。
 - 已完成 API 通用规范及 Auth、Users、Scores、Practice Sessions、Practice Media、Analysis Tasks、Analysis Results、Analysis Feedbacks API 设计。
 - 已统一项目错误码范围，并完成 Phase 6 全部文档 Freeze。
+- 已完成 Phase 7.1 AI 模块公共规范与运行契约，包括模块边界、统一输入输出、Score / Confidence、Issue / Warning 和 Runtime Metadata。
 - 交接前所有修改均已 Commit，并已 Push 到远程 main 分支。
 
 ### 7.2 本次对话已修改文件
 
-- README.md
 - CHANGELOG.md
-- docs/00_PROJECT_WORKFLOW.md
-- docs/02_PRODUCT_SPEC.md
-- docs/03_SYSTEM_ARCHITECTURE.md
 - docs/04_AI_TECHNICAL_ROUTE.md
 - docs/05_CURRENT_HANDOFF.md
-- docs/06_MVP_USER_FLOW.md
-- docs/07_DATABASE_SCHEMA.md
 - docs/08_AI_ANALYSIS_TASK_FLOW.md
 
-未修改业务代码。
+未修改数据库、API 和业务代码。
 
 ### 7.3 Git 状态
 
@@ -365,9 +370,9 @@ Phase 6 已全部完成，业务 API、数据库设计已形成统一规范。�
 
 ### 7.4 当前阶段状态
 
-> Phase 6.3：API 与数据库一致性核对已完成并 Freeze
+> Phase 7.1：AI 模块公共规范与运行契约已完成（待 Freeze）
 
-当前暂停继续开发，等待新对话重新读取 GitHub 文档并确认同步。
+当前暂停继续开发，等待项目经理 Freeze 后进入下一阶段。
 
 ### 7.5 下一步建议
 
@@ -382,7 +387,7 @@ Phase 6 已全部完成，业务 API、数据库设计已形成统一规范。�
 7. docs/07_DATABASE_SCHEMA.md
 8. docs/08_AI_ANALYSIS_TASK_FLOW.md
 
-确认同步无误后，从 Phase 7：AI 模块详细设计继续。
+确认同步并 Freeze 后，从 Phase 7.2：媒体预处理模块详细设计继续。
 
 ### 7.6 未解决问题
 

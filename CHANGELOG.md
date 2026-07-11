@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 2026-07-12｜Phase 7.1
+
+### 更新
+
+- docs/04_AI_TECHNICAL_ROUTE.md
+- docs/08_AI_ANALYSIS_TASK_FLOW.md
+- docs/05_CURRENT_HANDOFF.md
+- CHANGELOG.md
+
+### Freeze
+
+- AI Module Contract
+- Module Boundary
+- Unified Module Input
+- Unified Module Output
+- Score / Confidence Separation
+- Issue / Warning Rule
+- Runtime Metadata
+
 ## 2026-07-12｜Phase 6.3
 
 ### 更新

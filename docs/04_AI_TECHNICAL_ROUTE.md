@@ -330,3 +330,151 @@ LLM 负责：
 - Feedback Generation
 
 LLM 不直接分析音视频。
+
+---
+
+# Phase 7.1：AI 模块公共规范（AI Module Contract）
+
+本章节定义 AI Pipeline 内部模块的公共运行契约。该契约仅约束 Python AI Service 内部模块之间的输入、输出、错误、重试与运行元数据，不修改已 Freeze 的 API、数据库结构、任务状态机或 Pipeline 流程。
+
+## 1. 模块职责边界
+
+AI Pipeline 中的模块职责如下：
+
+| 模块 | 职责 |
+|---|---|
+| `pitch_analysis` | 基于已预处理音频完成音高识别、曲谱基准对齐、音准问题识别与评分。 |
+| `rhythm_analysis` | 基于已预处理音频和曲谱时间轴完成起音、节奏对齐、稳定性问题识别与评分。 |
+| `posture_analysis` | 基于已预处理视频完成身体与手部关键点相关的基础姿势识别、问题识别与评分。 |
+| `bowing_analysis` | 基于已预处理视频完成琴弓位置、轨迹和基础稳定性相关的分析、问题识别与评分。 |
+| `aggregation` | 汇总各模块已保存的标准化结果，生成模块汇总、综合评价及可供反馈使用的结构化输入。 |
+| `feedback_generation` | 基于已保存的结构化结果、用户学习阶段和曲谱信息生成面向用户的总结、教学解释与练习建议。 |
+
+每个模块只负责自身领域，不得替代其他模块的检测、推理或评分职责。
+
+LLM 不负责：
+
+- 音视频识别
+- 推理
+- 检测
+- 打分
+
+LLM 仅负责：
+
+- 总结
+- 教学解释
+- 练习建议
+
+## 2. 统一模块输入
+
+每个 AI 模块使用统一输入上下文。上下文至少包括：
+
+- `taskId`
+- `practiceSessionId`
+- `scoreReference`
+- `media`
+- `userContext`
+- `execution`
+
+各字段仅用于模块职责范围内的处理：
+
+- `scoreReference` 提供由后端准备的曲谱基准数据。
+- `media` 提供 Media Preprocessing 已输出并确认可用的标准化媒体及其质量信息。
+- `userContext` 提供用户学习阶段等允许用于反馈和评价的上下文。
+- `execution` 提供当前模块、执行尝试和受控运行配置。
+
+模块只能读取 Media Preprocessing 的输出，不能直接读取客户端原始媒体，也不得信任客户端提供的媒体元数据。
+
+## 3. 统一模块输出
+
+模块面向 Aggregation Service 输出的标准化结果必须与 Phase 6 已 Freeze 的 Analysis Result 协议保持一致，字段名称不得修改。统一输出字段为：
+
+- `status`
+- `score`
+- `rating`
+- `confidence`
+- `issues`
+- `warnings`
+- `rawResult`
+
+其中 `status`、`score`、`rating`、`confidence`、`issues` 和 `warnings` 用于既有结构化结果；`rawResult` 仅用于内部保存和排障，不直接返回 APP。
+
+## 4. 状态规范
+
+模块内部状态统一为：
+
+- `completed`
+- `failed`
+- `insufficient_data`
+- `cancelled`
+
+`insufficient_data` 表示当前模块的数据不足以形成可靠分析结论，例如有效画面、声音或曲谱对齐信息不足。它不是 `failed`；模块已完成可执行的判断，但不能给出足够可靠的结果。
+
+该内部状态规范不修改既有主任务状态机和对外 API 状态。
+
+## 5. Score 与 Confidence
+
+`score` 表示用户在该模块评估维度上的表现；`confidence` 表示模型或规则对该分析结果的可信度。
+
+- 两者不得混用。
+- 不得因 `confidence` 自动修改 `score`。
+- 低 `confidence` 应通过 `warnings`、不确定表达或 `rating = insufficient_data` 处理，并继续遵守既有低置信度展示规则。
+
+## 6. Issue 与 Warning
+
+`issue` 表示用户练习中识别到的问题，例如音高偏差、节奏不稳、肩部过高或弓线倾斜。
+
+`warning` 表示分析可靠性提醒，不应被表述为用户练习错误。例如：
+
+- 噪音过高
+- 光线不足
+- 拍摄角度异常
+- 视频不完整
+
+模块必须将用户表现问题和分析可靠性提醒分别写入 `issues` 与 `warnings`。
+
+## 7. Raw Result
+
+`rawResult` 用于保存仅供内部处理、复核和排障使用的原始或中间结果，可包括：
+
+- 人体关键点
+- 手部关键点
+- 琴弓轨迹
+- 模型中间输出
+- 调试信息
+
+APP 不直接读取 `rawResult`。对普通用户的返回继续使用 Phase 6 已定义的标准化结构结果。
+
+## 8. 模块错误分类
+
+AI Service 内部统一使用以下错误分类：
+
+- `input_error`
+- `media_error`
+- `quality_error`
+- `model_error`
+- `timeout_error`
+- `persistence_error`
+- `internal_error`
+
+该分类仅作为 AI Service 内部规范，用于记录、排障和重试判断；不得替代或修改既有对外 API 错误码。
+
+## 9. 模块幂等
+
+模块执行实例的唯一标识为：
+
+`taskId + module + attempt`
+
+同一执行实例的重复调度不得产生冲突结果。成功结果不得被失败结果覆盖；重试仅能写入对应尝试的结果，并由既有任务流程依据有效结果重新汇总。
+
+## 10. Runtime Metadata
+
+每个模块结果可在内部 `runtimeMetadata` 中记录以下运行元数据：
+
+- `modelName`
+- `modelVersion`
+- `ruleVersion`
+- `pipelineVersion`
+- `processingTimeMs`
+
+第一版仅将 `runtimeMetadata` 作为 JSONB 内部元数据使用，不新增数据库字段，也不改变对外 API 返回字段。
