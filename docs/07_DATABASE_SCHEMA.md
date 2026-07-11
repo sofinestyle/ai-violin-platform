@@ -452,6 +452,20 @@ score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。te
 
 以上字段仅为数据库设计说明；本次不执行数据库迁移、不生成实际 SQL，也不增加额外表。
 
+### 10.6 Analysis Tasks API 待确认项
+
+后续统一核对以下字段的最小必要集合：
+
+- parent_task_id
+- progress
+- current_stage
+- retry_count
+- max_retries
+- error_code
+- error_message
+
+本节仅记录待确认项，本次不增加字段。
+
 ---
 
 ## 11. ai_analysis_results AI 分析结果表
@@ -492,6 +506,18 @@ score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。te
 | 65-84 | 良好 |
 | 0-64 | 需要改进 |
 
+### 11.4 Analysis Results API 待确认内容
+
+- 模块状态结构
+- 模块评分结构
+- overall_rating
+- 是否需要 overall_score
+- 模型版本信息
+- 问题项 JSONB 结构
+- warnings 结构
+
+本节仅记录待确认内容，本次不增加字段。
+
 ---
 
 ## 12. ai_feedbacks AI 反馈表
@@ -514,6 +540,20 @@ score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。te
 | encouragement_text | TEXT | 鼓励性反馈 |
 | created_at | TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | 更新时间 |
+
+### 12.3 Analysis Feedbacks API 待确认内容
+
+- headline
+- strengths
+- improvements
+- next_practice_focus
+- encouragement
+- llm_model
+- prompt_version
+
+本节仅记录待确认内容，本次不增加字段。
+
+以上 Analysis API 数据库扩展项将在后续统一进行最小必要字段核对。本次不执行数据库迁移，不得一次性加入全部待确认字段。
 
 ---
 

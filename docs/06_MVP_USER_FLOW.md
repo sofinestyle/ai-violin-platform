@@ -220,6 +220,36 @@ Practice Session 进入 submitted
 提示用户重新录制
 ```
 
+AI 分析阶段流程：
+
+```text
+Practice Media ready
+↓
+POST /api/v1/analysis/tasks
+↓
+立即返回 taskId
+↓
+APP 进入 AI 分析中页面
+↓
+GET /api/v1/analysis/tasks/{taskId}
+↓
+每 2 秒轮询
+↓
+completed / partially_completed
+↓
+读取 Analysis Result
+↓
+读取 Analysis Feedback
+↓
+进入 AI 分析结果页
+```
+
+- 用户关闭 APP 不取消后台任务。
+- APP 重新打开后，可按 practiceSessionId 查询当前任务。
+- 部分完成时仍展示成功模块结果。
+- Feedback 尚未生成时，先展示结构化结果。
+- 任务进入终态后停止轮询。
+
 ---
 
 ### 4.7 AI 分析结果页

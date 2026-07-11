@@ -17,7 +17,7 @@
 
 当前处于：
 
-> Phase 6.2 第三部分之二：Practice Media API 设计已完成并 Freeze
+> Phase 6.2 第四部分：Analysis Tasks + Analysis Results + Feedbacks API 设计已完成并 Freeze
 
 ---
 
@@ -168,7 +168,25 @@ docs/07_DATABASE_SCHEMA.md
 - 文件访问安全
 - Practice Media 错误码
 
-### 2.10 长期目标
+### 2.10 Phase 6.2 第四部分已完成内容
+
+- AI 分析任务创建接口
+- AI 任务状态查询接口
+- 按 Practice Session 查询任务
+- 轮询规则
+- 单模块重试
+- Analysis Result 结构
+- 统一问题项结构
+- 置信度与警告规则
+- 模块评分和综合评价原则
+- Feedback 查询接口
+- LLM 职责边界
+- Feedback 独立失败策略
+- 按 Practice Session 查询结果和反馈
+- Analysis 权限规则
+- Analysis 错误码
+
+### 2.11 长期目标
 
 项目长期目标不是单一软件，而是构建 AI Music Platform。
 
@@ -183,7 +201,7 @@ docs/07_DATABASE_SCHEMA.md
 
 ---
 
-### 2.11 工作方式
+### 2.12 工作方式
 
 项目采用文档驱动开发：
 
@@ -203,7 +221,7 @@ Codex 开发
 
 ---
 
-### 2.12 角色分工
+### 2.13 角色分工
 
 项目经理：用户本人。
 
@@ -227,7 +245,7 @@ Codex 承担：
 
 ---
 
-### 2.13 文档管理方式
+### 2.14 文档管理方式
 
 由于 ChatGPT 对话会被自动压缩，因此后续以 GitHub 中的 Markdown 文档作为项目长期记忆。
 
@@ -268,7 +286,9 @@ Codex 更新 GitHub 文档
 
 下一阶段为：
 
-> Phase 6.2 第四部分：Analysis Tasks + Analysis Results + Feedbacks API 设计
+> Phase 6.3：API 与数据库一致性核对
+
+Phase 6.2 的主要业务 API 设计已完成，下一步统一核对所有 API 所需字段与现有 9 张核心表之间的一致性，并确认最小必要数据库变更。
 
 ---
 

@@ -1970,3 +1970,435 @@ API 只能返回：
 - 第一版不开放单独删除媒体接口。
 - 文件地址必须受权限控制。
 - 额外媒体元数据字段暂列待确认项。
+
+---
+
+## 23. Analysis Tasks、Results 与 Feedbacks API 设计
+
+### 23.1 三类资源职责
+
+Analysis Tasks 负责：
+
+- 创建异步 AI 分析任务
+- 调度主任务和子任务
+- 保存分析状态、进度和当前阶段
+- 记录成功、失败和可重试模块
+- 为 APP 提供任务查询能力
+
+Analysis Results 负责：
+
+- 保存和返回结构化分析结果
+- 保存音准、节奏、姿势和运弓结果
+- 保存评分、等级、置信度、问题和警告
+- 保存汇总结果
+
+Analysis Feedbacks 负责：
+
+- 保存面向用户的自然语言反馈
+- 保存优点和待改进问题
+- 保存下一次练习重点
+- 保存鼓励性总结
+
+明确：Task = 任务状态，Result = 结构化事实，Feedback = 用户可读建议。
+
+### 23.2 Analysis Tasks API
+
+统一前缀：`/api/v1/analysis/tasks`
+
+#### 23.2.1 创建分析任务
+
+`POST /api/v1/analysis/tasks`
+
+请求：
+
+```json
+{
+  "practiceSessionId": "uuid"
+}
+```
+
+前端不得提交：
+
+- userId
+- scoreId
+- audioFileUrl
+- videoFileUrl
+- taskStatus
+- score
+- scoreNotes
+- referenceData
+- availableModules
+
+后端根据 practiceSessionId 自动读取当前用户、Practice Session、Score、score_notes、Practice Media、用户学习阶段和可执行的分析模块。
+
+创建条件：
+
+- Practice Session 属于当前用户。
+- Practice Session 状态为 submitted。
+- Practice Media 至少存在一种可用媒体。
+- Practice Media 已达到可分析条件。
+- 当前练习不存在正在执行或已完成的有效主任务。
+
+创建成功后：
+
+- 创建 full_practice_analysis 主任务。
+- 调度 media_preprocessing。
+- 根据媒体可用情况创建可执行子任务。
+- Practice Session 状态进入 analyzing。
+- 立即返回 taskId，不等待 AI 分析完成。
+
+返回至少包括：id、practiceSessionId、taskType、taskStatus、progress、currentStage、displayText、reused。
+
+```json
+{
+  "success": true,
+  "code": 0,
+  "message": "AI 分析任务已创建",
+  "data": {
+    "id": "uuid",
+    "practiceSessionId": "uuid",
+    "taskType": "full_practice_analysis",
+    "taskStatus": "queued",
+    "progress": 5,
+    "currentStage": "queued",
+    "displayText": "正在准备分析",
+    "reused": false
+  }
+}
+```
+
+#### 23.2.2 创建接口幂等
+
+同一个 Practice Session 重复调用时：
+
+- 已存在进行中的有效主任务：返回原任务。
+- 已存在已完成的有效主任务：返回原任务及结果入口。
+- 不重复创建第二个完整分析主任务。
+- 返回 `reused = true`。
+
+继续支持 `Idempotency-Key: uuid`。
+
+#### 23.2.3 查询任务状态
+
+`GET /api/v1/analysis/tasks/{taskId}`
+
+APP 在 AI 分析中页面轮询该接口。返回至少包括：
+
+- id
+- practiceSessionId
+- taskType
+- taskStatus
+- progress
+- currentStage
+- displayText
+- availableModules
+- completedModules
+- failedModules
+- retryableModules
+- resultId
+- feedbackId
+- createdAt
+- updatedAt
+
+```json
+{
+  "success": true,
+  "code": 0,
+  "message": "OK",
+  "data": {
+    "id": "uuid",
+    "practiceSessionId": "uuid",
+    "taskType": "full_practice_analysis",
+    "taskStatus": "processing",
+    "progress": 58,
+    "currentStage": "motion_analysis",
+    "displayText": "正在分析姿势和运弓",
+    "availableModules": ["pitch", "rhythm", "posture", "bowing"],
+    "completedModules": ["pitch", "rhythm"],
+    "failedModules": [],
+    "retryableModules": [],
+    "resultId": null,
+    "feedbackId": null,
+    "createdAt": "2026-07-11T08:03:00Z",
+    "updatedAt": "2026-07-11T08:03:25Z"
+  }
+}
+```
+
+完成时：taskStatus = completed、progress = 100、currentStage = completed、displayText = 分析完成。
+
+部分完成时：taskStatus = partially_completed、progress = 100，并返回 failedModules、retryableModules、resultId 和 feedbackId。
+
+#### 23.2.4 按 Practice Session 查询当前任务
+
+`GET /api/v1/practice-sessions/{practiceSessionId}/analysis-task`
+
+用于用户关闭 APP 后重新进入、仅有 practiceSessionId 时查询任务、练习详情恢复状态及判断是否已有有效任务。第一版只返回当前有效主任务，不返回全部历史子任务和内部重试记录。
+
+#### 23.2.5 轮询规则
+
+第一版采用轮询，不采用 WebSocket。
+
+- AI 分析中页面默认每 2 秒查询一次。
+- APP 进入后台后停止高频轮询。
+- APP 回到前台后立即查询一次。
+- 长时间任务可逐渐降低为每 5 秒查询一次。
+- 任务进入终态后停止轮询。
+
+终态包括 completed、partially_completed、failed、cancelled。用户关闭 APP 不影响服务器后台分析。
+
+#### 23.2.6 第一版不开放任务取消接口
+
+第一版普通用户不提供 `DELETE /api/v1/analysis/tasks/{taskId}`。
+
+分析任务通常持续时间有限，取消并行子任务会增加复杂状态，且已消耗计算无法完全回收。用户删除练习时可以软删除练习记录；后台运维取消能力不属于 MVP 用户 API。
+
+#### 23.2.7 单模块重试接口
+
+`POST /api/v1/analysis/tasks/{taskId}/retries`
+
+```json
+{
+  "module": "bowing"
+}
+```
+
+允许模块：media_preprocessing、pitch、rhythm、posture、bowing、feedback。
+
+- 只能重试失败、超时或明确标记为可重试的模块。
+- 已成功模块不得重复覆盖。
+- 用户只能操作自己的任务。
+- 不得超过 maxRetries。
+- 重试期间主任务可重新进入 processing。
+- Feedback 重试期间可进入 generating_feedback。
+- 重试完成后重新计算主任务终态。
+- 已成功结果不得被失败重试覆盖。
+
+前端第一版不必让用户手动选择技术模块，可根据 retryableModules 展示“重新分析”按钮，由后端决定实际重试模块。
+
+### 23.3 Analysis Results API
+
+统一前缀：`/api/v1/analysis/results`
+
+#### 23.3.1 查询结构化结果
+
+`GET /api/v1/analysis/results/{resultId}`
+
+返回至少包括 id、practiceSessionId、taskId、overallRating、summary、modules、createdAt。
+
+summary 至少包括 successfulModules、failedModules、warnings。modules 包括 pitch、rhythm、posture、bowing，每个模块统一返回 status、score、rating、confidence、issues、warnings。
+
+```json
+{
+  "success": true,
+  "code": 0,
+  "message": "OK",
+  "data": {
+    "id": "uuid",
+    "practiceSessionId": "uuid",
+    "taskId": "uuid",
+    "overallRating": "good",
+    "summary": {
+      "successfulModules": 4,
+      "failedModules": 0,
+      "warnings": []
+    },
+    "modules": {
+      "pitch": {"status": "completed", "score": 82, "rating": "good", "confidence": 0.91, "issues": [], "warnings": []},
+      "rhythm": {"status": "completed", "score": 76, "rating": "needs_improvement", "confidence": 0.87, "issues": [], "warnings": []},
+      "posture": {"status": "completed", "score": 85, "rating": "good", "confidence": 0.79, "issues": [], "warnings": []},
+      "bowing": {"status": "completed", "score": 71, "rating": "needs_improvement", "confidence": 0.74, "issues": [], "warnings": []}
+    },
+    "createdAt": "2026-07-11T08:04:20Z"
+  }
+}
+```
+
+#### 23.3.2 Analysis Result 只读
+
+普通用户不提供：
+
+- `POST /api/v1/analysis/results`
+- `PATCH /api/v1/analysis/results/{resultId}`
+- `DELETE /api/v1/analysis/results/{resultId}`
+
+Analysis Result 只能由 AI Pipeline 生成和更新。
+
+#### 23.3.3 原始模型结果不得直接返回 APP
+
+用户端接口默认不得返回全部人体或手部关键点、全部琴弓轨迹点、每帧原始检测结果、模型中间张量、模型调试日志、内部评分阈值、服务器文件路径、原始 Worker 日志或内部异常堆栈。
+
+rawResult 可以保存于数据库或内部存储，但不能直接暴露给普通用户端。APP 只读取产品所需的标准化结构结果。
+
+### 23.4 统一问题项结构
+
+每个问题至少包括：issueCode、module、severity、confidence、measure、noteIndex、startSecond、endSecond、message、evidence；并非所有字段都必须同时存在。
+
+```json
+{
+  "issueCode": "pitch_high",
+  "module": "pitch",
+  "severity": "moderate",
+  "confidence": 0.88,
+  "measure": 4,
+  "noteIndex": 16,
+  "startSecond": 12.4,
+  "endSecond": 13.1,
+  "message": "该音略高",
+  "evidence": {
+    "expectedPitch": "A4",
+    "detectedPitch": "A#4",
+    "deviationCents": 42
+  }
+}
+```
+
+```json
+{
+  "issueCode": "right_shoulder_raised",
+  "module": "posture",
+  "severity": "moderate",
+  "confidence": 0.81,
+  "startSecond": 18.2,
+  "endSecond": 27.6,
+  "message": "右肩持续偏高",
+  "evidence": {}
+}
+```
+
+统一问题项结构用于 APP 统一展示、按时间定位视频问题、按小节和音符定位音准或节奏问题、后续教师复核及训练数据标注。
+
+### 23.5 置信度与警告规则
+
+- 每个模块必须返回 confidence。
+- 每个问题项应尽量返回 confidence。
+- 高于展示阈值：可以作为明确问题展示。
+- 接近阈值：放入 warnings 或使用不确定表达。
+- 低于阈值：不作为确定性错误展示。
+- 模块整体置信度过低时，返回 rating = insufficient_data，并提示“本次画面或声音不足以准确判断”。
+- LLM 不得把低置信度问题改写成确定性结论。
+
+阈值由后端配置和后续测试确定，本阶段不写死具体数值。
+
+### 23.6 评分原则
+
+每个成功模块可以返回 score（0—100）、rating、confidence。
+
+建议等级：excellent、good、needs_improvement、insufficient_data。
+
+- 前端不得自行计算综合评分。
+- 综合评价由后端汇总服务生成。
+- 第一版可以保存模块分数。
+- APP 优先展示等级、问题和建议，不必突出总分。
+- 失败模块不得按 0 分计入综合评价。
+- 部分成功时，综合评价只根据成功模块计算。
+- 必须明确提示未成功分析的模块。
+- 评分权重由后端配置，后续通过测试调整。
+- 评分权重不由 APP 决定。
+
+### 23.7 Analysis Feedbacks API
+
+统一前缀：`/api/v1/analysis/feedbacks`
+
+#### 23.7.1 查询自然语言反馈
+
+`GET /api/v1/analysis/feedbacks/{feedbackId}`
+
+返回至少包括 id、practiceSessionId、taskId、headline、strengths、improvements、nextPracticeFocus、encouragement、generatedAt。
+
+```json
+{
+  "success": true,
+  "code": 0,
+  "message": "OK",
+  "data": {
+    "id": "uuid",
+    "practiceSessionId": "uuid",
+    "taskId": "uuid",
+    "headline": "本次音准较稳定，运弓还可以更平稳",
+    "strengths": ["大部分音符音准稳定", "持琴姿势整体自然"],
+    "improvements": ["第4小节有两个音略高", "中段弓线有明显倾斜"],
+    "nextPracticeFocus": ["用慢速练习第4小节", "进行两分钟空弦直弓练习"],
+    "encouragement": "继续保持，下一次重点关注弓线稳定。",
+    "generatedAt": "2026-07-11T08:04:30Z"
+  }
+}
+```
+
+#### 23.7.2 Feedback 生成原则
+
+LLM 输入只能来自用户学习阶段、曲谱信息、已保存的结构化分析结果、模块评分和等级、置信度、警告、主要问题项和已确认的教学表达规则。
+
+- LLM 不直接读取原始音视频。
+- LLM 不重新识别姿势、检测音高、计算节奏或重新打分。
+- LLM 不得捏造结构化结果中不存在的问题。
+- LLM 不得将低置信度警告改写为确定结论。
+
+#### 23.7.3 Feedback 生成失败
+
+- Analysis Result 继续保存。
+- APP 继续展示结构化分析结果。
+- Feedback 接口返回“尚未生成”或生成失败状态。
+- 允许单独重试 feedback。
+- 不将整次练习判定为完全失败。
+- Practice Session 可以保持 analyzed 或 partially_analyzed，具体以后端有效结果为准。
+
+### 23.8 按 Practice Session 查询结果和反馈
+
+- `GET /api/v1/practice-sessions/{practiceSessionId}/analysis-result`
+- `GET /api/v1/practice-sessions/{practiceSessionId}/feedback`
+
+用于历史练习详情页、用户重新打开 APP 或只有 practiceSessionId 时查询结果，避免前端必须长期保存 resultId 和 feedbackId。上述接口属于嵌套资源 API，不属于页面 API。
+
+### 23.9 权限规则
+
+第一版所有 Analysis API 均需要登录。用户只能访问自己的 Analysis Task、Analysis Result 和 Analysis Feedback，后端必须通过资源所属的 Practice Session 验证当前用户。
+
+AI Worker 和内部服务使用内部服务身份，不使用普通用户 Access Token，不通过公开用户 API 读取敏感媒体，并使用受控内部地址或内部服务接口。
+
+### 23.10 Analysis 错误码
+
+| 错误码 | 含义 |
+|---|---|
+| 4001 | AI 分析任务不存在 |
+| 4002 | 当前练习不允许创建分析任务 |
+| 4003 | 媒体尚未达到可分析条件 |
+| 4004 | 已存在有效分析任务 |
+| 4005 | AI 分析任务失败 |
+| 4006 | AI 分析任务尚未完成 |
+| 4007 | 分析结果不存在 |
+| 4008 | 反馈不存在或尚未生成 |
+| 4009 | 无权访问该分析任务 |
+| 4010 | 当前模块不可重试 |
+| 4011 | 已超过最大重试次数 |
+| 4012 | 分析结果数据不足 |
+| 4013 | 分析任务部分完成 |
+
+4004 不一定作为阻断错误，创建接口可以返回已有任务并使用 `reused = true`。
+
+### 23.11 Analysis API Freeze
+
+本阶段冻结：
+
+- POST /api/v1/analysis/tasks 创建异步分析任务。
+- 创建后立即返回 taskId。
+- 同一 Practice Session 只保留一个有效主任务。
+- GET /api/v1/analysis/tasks/{taskId} 查询任务状态。
+- 提供按 Practice Session 查询当前任务接口。
+- 第一版采用轮询，不采用 WebSocket。
+- 第一版普通用户不能取消分析任务。
+- 支持失败模块单独重试。
+- GET /api/v1/analysis/results/{resultId} 返回结构化结果。
+- Analysis Result 对普通用户只读。
+- 原始模型中间结果不直接返回 APP。
+- 所有问题项使用统一结构。
+- 低置信度结果不得作为确定性错误。
+- 模块失败不按 0 分计入综合评价。
+- 综合评分由后端计算。
+- GET /api/v1/analysis/feedbacks/{feedbackId} 返回自然语言反馈。
+- LLM 只基于结构化结果生成反馈。
+- Feedback 失败不影响结构化结果展示。
+- 提供按 Practice Session 查询结果和反馈接口。
+- 所有 Analysis API 需要登录。
+- 用户只能访问本人分析数据。
+- 数据库扩展字段暂列待确认项。

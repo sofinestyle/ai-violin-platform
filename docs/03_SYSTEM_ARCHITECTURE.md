@@ -335,3 +335,37 @@ Practice Media Service 负责：
 - Practice Media Service 只在约定节点通知或触发状态联动。
 
 不新增新的系统一级架构层。
+
+### 11.8 Analysis 服务职责
+
+Analysis Task Service 负责：
+
+- 创建主任务和子任务
+- 任务调度
+- 任务进度
+- 状态转换
+- 重试控制
+- 幂等控制
+- 任务结果关联
+
+Analysis Result Service 负责：
+
+- 保存标准化结构化结果
+- 保存模块状态
+- 保存评分和等级
+- 保存置信度
+- 保存问题和警告
+- 返回用户端结构结果
+
+Feedback Service 负责：
+
+- 读取结构化结果
+- 调用 LLM
+- 生成用户可读反馈
+- 保存反馈结果
+- 支持单独重试
+
+- Feedback Service 不直接读取原始音视频。
+- Analysis Result Service 不负责自然语言润色。
+- APP 不直接访问 AI Worker。
+- 不新增新的系统一级架构层，只补充现有服务职责。
