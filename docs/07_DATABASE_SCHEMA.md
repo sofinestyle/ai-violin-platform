@@ -289,6 +289,23 @@ score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。te
 | failed | 分析失败 |
 | deleted | 已删除 |
 
+### 8.5 Practice Sessions API 一致性说明
+
+现有字段基本满足 Practice Sessions API。
+
+待后续统一确认字段：
+
+| 字段 | 用途 | 当前处理 |
+|---|---|---|
+| deleted_at | 记录软删除时间 | 暂不加入 |
+| idempotency_key | 数据库级幂等控制 | 暂不加入，可先使用缓存 |
+
+- 本次不增加字段。
+- 本次不执行数据库迁移。
+- 软删除第一版通过 status = deleted 实现。
+- 幂等第一版可通过缓存实现。
+- 如后续工程实现需要持久化，再单独提出数据库变更。
+
 ---
 
 ## 9. practice_media 练习媒体表

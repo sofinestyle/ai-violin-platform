@@ -297,3 +297,22 @@ API 围绕以下业务资源组织：
 - 客户端上传的音符基准不得作为可信标准答案。
 
 保持现有总体架构不变，不新增新的系统一级模块。
+
+### 11.6 Practice Session 服务职责
+
+Practice Session Service 负责：
+
+- 练习创建
+- 练习生命周期
+- 状态转换
+- 历史查询
+- 权限校验
+- 幂等控制
+- 软删除
+
+- Practice Session Service 不处理实际音视频文件。
+- Practice Media Service 处理文件。
+- Analysis Task Service 处理 AI 分析任务。
+- 三者通过 practiceSessionId 关联。
+
+不新增新的系统一级架构层，只补充职责说明。

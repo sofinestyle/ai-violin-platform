@@ -1251,3 +1251,339 @@ message: 曲谱已停用
 - 所有 Scores API 第一版需要登录。
 - 曲谱标准答案由后端数据库提供。
 - 曲谱结构化音符使用独立 score_notes 表。
+
+---
+
+## 21. Practice Sessions API 设计
+
+### 21.1 Practice Session 资源职责
+
+Practice Session 表示用户一次完整练习的主业务记录。
+
+负责：
+
+- 创建练习
+- 绑定当前用户和曲谱
+- 记录开始时间
+- 记录结束时间
+- 记录练习时长
+- 管理练习状态
+- 查询历史练习
+- 查询单次练习详情
+- 关联 Practice Media、Analysis Task、Analysis Result 和 Feedback
+
+不负责：
+
+- 接收大型音视频文件
+- 执行 AI 分析
+- 保存详细 AI 分析结果
+- 生成自然语言反馈
+
+统一前缀：
+
+`/api/v1/practice-sessions`
+
+### 21.2 练习生命周期
+
+```text
+用户点击开始练习
+↓
+创建 Practice Session
+↓
+status = recording
+↓
+APP 录制音频和视频
+↓
+用户结束录制
+↓
+记录 endedAt 和 durationSeconds
+↓
+status = uploading
+↓
+上传 Practice Media
+↓
+status = submitted
+↓
+创建 Analysis Task
+↓
+status = analyzing
+↓
+AI 完成
+↓
+status = analyzed
+```
+
+允许分支：
+
+```text
+analyzing → partially_analyzed
+recording / uploading / submitted / analyzing → failed
+任意可删除状态 → deleted
+```
+
+禁止：
+
+- recording → analyzed
+- analyzed → recording
+- deleted → analyzing
+
+- 状态由后端控制。
+- 前端不能直接提交目标状态。
+- 后端必须校验每次状态转换是否合法。
+
+### 21.3 创建练习接口
+
+`POST /api/v1/practice-sessions`
+
+请求：
+
+```json
+{
+  "scoreId": "uuid"
+}
+```
+
+后端负责：
+
+- 校验用户已登录。
+- 校验曲谱存在且启用。
+- 从 Access Token 获取当前用户。
+- 创建 practice_sessions。
+- 自动设置 startedAt。
+- 设置 status = recording。
+
+请求中不得接收 userId。用户身份必须由 Access Token 确定，防止伪造其他用户身份。
+
+返回至少包括：
+
+- id
+- scoreId
+- status
+- startedAt
+
+### 21.4 结束录制接口
+
+`PATCH /api/v1/practice-sessions/{practiceSessionId}`
+
+请求：
+
+```json
+{
+  "action": "finishRecording",
+  "durationSeconds": 126
+}
+```
+
+后端负责：
+
+- 校验练习属于当前用户。
+- 校验当前状态为 recording。
+- 设置 endedAt。
+- 保存 durationSeconds。
+- 修改为 status = uploading。
+
+前端不得直接提交：
+
+```json
+{
+  "status": "uploading"
+}
+```
+
+状态变化必须通过业务 action 触发。
+
+### 21.5 取消录制
+
+继续使用：
+
+`PATCH /api/v1/practice-sessions/{practiceSessionId}`
+
+请求：
+
+```json
+{
+  "action": "cancelRecording"
+}
+```
+
+第一版处理原则：
+
+- 用户在媒体上传前取消录制时，采用软删除。
+- 设置 status = deleted。
+- 不物理删除数据库记录。
+- 不新增 cancelled 状态，避免扩展已冻结状态机。
+
+### 21.6 AI 分析任务职责
+
+不设计：
+
+`POST /api/v1/practice-sessions/{practiceSessionId}/submit`
+
+AI 任务继续使用独立资源：
+
+`POST /api/v1/analysis/tasks`
+
+请求：
+
+```json
+{
+  "practiceSessionId": "uuid"
+}
+```
+
+- Practice Session 管理练习生命周期。
+- Analysis Task 管理 AI 分析生命周期。
+- 两者职责不得混合。
+
+### 21.7 练习历史列表接口
+
+`GET /api/v1/practice-sessions`
+
+支持参数：
+
+- page
+- pageSize
+- scoreId
+- status
+- dateFrom
+- dateTo
+
+示例：
+
+`GET /api/v1/practice-sessions?page=1&pageSize=20&status=analyzed`
+
+默认排序：
+
+`startedAt DESC`
+
+列表项至少返回：
+
+- id
+- score.id
+- score.title
+- startedAt
+- durationSeconds
+- status
+- overallRating
+
+列表接口不返回：
+
+- 完整 Practice Media
+- 完整 AI 原始结果
+- 完整问题列表
+- 完整自然语言反馈
+
+### 21.8 单次练习详情接口
+
+`GET /api/v1/practice-sessions/{practiceSessionId}`
+
+返回练习主信息及关联资源摘要，至少包括：
+
+- id
+- score
+- startedAt
+- endedAt
+- durationSeconds
+- status
+- overallRating
+- media.id
+- media.fileStatus
+- analysisTask.id
+- analysisTask.taskStatus
+- analysisTask.progress
+- analysisResultId
+- feedbackId
+
+完整分析结果继续通过以下接口获取：
+
+- `GET /api/v1/analysis/results/{analysisResultId}`
+- `GET /api/v1/analysis/feedbacks/{feedbackId}`
+
+### 21.9 删除练习记录
+
+`DELETE /api/v1/practice-sessions/{practiceSessionId}`
+
+第一版采用软删除：
+
+`status = deleted`
+
+规则：
+
+- 只能删除自己的练习记录。
+- 删除后不在普通历史列表显示。
+- 不立即物理删除 Practice Media。
+- 不立即物理删除 AI 结果和反馈。
+- 后续由统一清理任务处理实际文件删除。
+
+### 21.10 曲谱不可修改原则
+
+Practice Session 创建后，不允许修改 scoreId。
+
+AI 分析必须基于创建时确定的曲谱标准数据。用户选错曲谱时，应删除当前练习记录并重新创建新的 Practice Session。
+
+### 21.11 幂等规则
+
+创建接口支持：
+
+`Idempotency-Key: uuid`
+
+相同用户使用相同 Idempotency-Key 重复调用创建接口时，应返回同一条 Practice Session，不重复创建。
+
+- APP 点击开始后应立即禁用按钮。
+- 后端仍必须防止重复请求。
+- Idempotency-Key 可以暂时通过缓存实现。
+- 本阶段不直接将 idempotency_key 加入数据库表。
+
+### 21.12 重复结束录制
+
+如果练习已经结束，再次提交 `action = finishRecording`：
+
+- 不重复修改数据。
+- 不重复创建任何记录。
+- 返回当前 Practice Session 状态。
+- 保证接口幂等。
+
+### 21.13 时长校验
+
+后端应校验：
+
+- durationSeconds >= 1。
+- 时长不能明显超过上传媒体的实际时长。
+- 最终时长以媒体校验结果为准。
+- 如前端提交时长与媒体时长差异过大，应记录警告或修正。
+
+### 21.14 Practice Sessions 错误码
+
+| 错误码 | 含义 |
+|---|---|
+| 2101 | 练习记录不存在 |
+| 2102 | 无权访问该练习 |
+| 2103 | 练习状态不允许当前操作 |
+| 2104 | 练习已经结束 |
+| 2105 | 练习尚未完成录制 |
+| 2106 | 练习时长无效 |
+| 2107 | 曲谱不可用于练习 |
+| 2108 | 重复提交 |
+| 2109 | 练习记录已删除 |
+
+错误响应继续使用 Phase 6.1 统一格式。
+
+### 21.15 Practice Sessions API Freeze
+
+本阶段冻结：
+
+- Practice Session 为一次练习的主业务记录。
+- 创建接口为 POST /api/v1/practice-sessions。
+- 用户身份从 Token 获取。
+- 请求不得提交 userId。
+- 结束和取消录制使用 PATCH 的业务 action。
+- 前端不得直接修改 status。
+- AI 任务使用独立 Analysis Tasks API。
+- 历史列表支持分页、曲谱、状态和日期筛选。
+- 详情接口只返回关联资源摘要。
+- 删除采用软删除。
+- 创建后不得修改 scoreId。
+- 后端严格控制状态转换。
+- 创建接口支持幂等。
+- 重复结束请求安全返回。
+- deleted_at 和 idempotency_key 暂列待确认项。

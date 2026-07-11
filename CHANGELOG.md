@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## 2026-07-11｜Phase 6.2 第三部分之一
+
+### 更新
+
+- docs/03_SYSTEM_ARCHITECTURE.md
+- docs/05_CURRENT_HANDOFF.md
+- docs/06_MVP_USER_FLOW.md
+- docs/07_DATABASE_SCHEMA.md
+- docs/08_AI_ANALYSIS_TASK_FLOW.md
+- CHANGELOG.md
+
+### Freeze
+
+- Practice Session 为一次练习主业务记录
+- POST /api/v1/practice-sessions
+- 用户身份从 Token 获取
+- 前端不得提交 userId
+- PATCH action 完成或取消录制
+- 前端不得直接修改 status
+- Analysis Tasks 保持独立资源
+- GET /api/v1/practice-sessions
+- GET /api/v1/practice-sessions/{practiceSessionId}
+- DELETE 使用软删除
+- 创建后不得修改 scoreId
+- 后端严格控制状态转换
+- Idempotency-Key 防止重复创建
+- 重复结束请求需保证幂等
+- deleted_at 与 idempotency_key 暂列待确认项
+
 ## 2026-07-11｜Phase 6.2 第二部分
 
 ### 更新

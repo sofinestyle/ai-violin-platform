@@ -172,6 +172,30 @@
 - 保证能看到持琴和运弓动作
 - 尽量在安静环境下练习
 
+练习录制后台资源关系：
+
+```text
+用户开始练习
+↓
+创建 Practice Session
+↓
+录制音频和视频
+↓
+结束录制
+↓
+Practice Session 进入 uploading
+↓
+上传 Practice Media
+↓
+创建 Analysis Task
+↓
+进入 AI 分析中页面
+```
+
+- APP 开始录制前必须先获取 practiceSessionId。
+- 后续媒体上传和 AI 分析均关联该 ID。
+- 用户取消未上传的练习时采用软删除。
+
 ---
 
 ### 4.7 AI 分析结果页
