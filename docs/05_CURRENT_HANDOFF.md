@@ -17,7 +17,7 @@
 
 当前处于：
 
-> 项目初始化与文档体系建立阶段
+> Phase 5.1：AI 分析任务流程设计已完成并 Freeze
 
 ---
 
@@ -70,7 +70,21 @@ docs/07_DATABASE_SCHEMA.md
 - 结构化字段 + JSONB 扩展字段
 - 支撑用户、曲谱、练习记录、音视频文件、AI 分析任务、AI 分析结果和 AI 反馈
 
-### 2.3 长期目标
+### 2.3 Phase 5.1 已完成内容
+
+- AI 异步任务架构
+- Master Task / Sub Task
+- 媒体预处理流程
+- 四模块并行分析
+- AI 任务状态机
+- Practice Session 状态机
+- 部分成功策略
+- 单模块重试策略
+- APP 分析进度展示
+- APP 退出后后台继续分析
+- 项目永久工作流
+
+### 2.4 长期目标
 
 项目长期目标不是单一软件，而是构建 AI Music Platform。
 
@@ -85,7 +99,7 @@ docs/07_DATABASE_SCHEMA.md
 
 ---
 
-### 2.4 工作方式
+### 2.5 工作方式
 
 项目采用文档驱动开发：
 
@@ -105,7 +119,7 @@ Codex 开发
 
 ---
 
-### 2.5 角色分工
+### 2.6 角色分工
 
 项目经理：用户本人。
 
@@ -129,7 +143,7 @@ Codex 承担：
 
 ---
 
-### 2.6 文档管理方式
+### 2.7 文档管理方式
 
 由于 ChatGPT 对话会被自动压缩，因此后续以 GitHub 中的 Markdown 文档作为项目长期记忆。
 
@@ -153,6 +167,7 @@ Codex 更新 GitHub 文档
 
 - README.md
 - docs/00_PROJECT_GOVERNANCE.md
+- docs/00_PROJECT_WORKFLOW.md
 - docs/01_PROJECT_OVERVIEW.md
 - docs/02_PRODUCT_SPEC.md
 - docs/03_SYSTEM_ARCHITECTURE.md
@@ -160,17 +175,16 @@ Codex 更新 GitHub 文档
 - docs/05_CURRENT_HANDOFF.md
 - docs/06_MVP_USER_FLOW.md
 - docs/07_DATABASE_SCHEMA.md
+- docs/08_AI_ANALYSIS_TASK_FLOW.md
+- CHANGELOG.md
 
 ---
 
-## 4. 下一步建议
+## 4. 下一阶段
 
-下一步建议：
+下一阶段为：
 
-1. 设计 AI 分析任务流程
-2. 编写第一版可开发的 FEATURE SPEC
-3. 后续进入 UI/UX 页面原型设计
-4. 后续细化 API 设计
+> Phase 5.2：AI Pipeline 设计
 
 ---
 
@@ -189,14 +203,12 @@ Codex 更新 GitHub 文档
 
 ## 6. 给下次 ChatGPT 会话的提示
 
-下次继续本项目时，可以先发送：
+继续项目之前，必须依次读取：
 
-```text
-请先读取 GitHub 中 AI Violin Platform 的项目文档，再继续。
-```
+- README.md
+- docs/00_PROJECT_GOVERNANCE.md
+- docs/00_PROJECT_WORKFLOW.md
+- docs/05_CURRENT_HANDOFF.md
+- 当前阶段相关文档
 
-如果 GitHub 尚未建立，可以发送：
-
-```text
-请基于当前第一版项目 MD 文档，继续完善 AI Violin Platform。
-```
+所有后续阶段必须遵守 docs/00_PROJECT_WORKFLOW.md。

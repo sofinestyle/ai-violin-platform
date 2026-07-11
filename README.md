@@ -81,3 +81,27 @@ Codex 开发
 聊天记录只作为临时讨论，不作为最终产品规则。
 
 当聊天内容与本仓库文档不一致时，以最新有效项目文档为准。
+
+## 项目文档读取顺序
+
+继续项目时，应按以下顺序读取文档：
+
+```text
+README.md
+↓
+docs/00_PROJECT_GOVERNANCE.md
+↓
+docs/00_PROJECT_WORKFLOW.md
+↓
+docs/05_CURRENT_HANDOFF.md
+↓
+当前阶段相关文档
+```
+
+GitHub 中的 Markdown 文档是 AI Violin Platform 项目的唯一事实来源。
+
+## 文档与目录规范
+
+产品文档和项目管理文档使用中文；代码、数据库字段、API、类名和函数名使用英文。
+
+已确认的目录和文档结构非必要不调整；新内容优先写入已有文档。

@@ -212,9 +212,11 @@
 | 值 | 含义 |
 |---|---|
 | recording | 录制中 |
+| uploading | 媒体上传中 |
 | submitted | 已提交分析 |
 | analyzing | 分析中 |
 | analyzed | 已完成分析 |
+| partially_analyzed | AI 部分模块分析成功，仍可展示有效结果 |
 | failed | 分析失败 |
 | deleted | 已删除 |
 
@@ -275,8 +277,13 @@
 |---|---|---|
 | id | UUID | 任务 ID |
 | practice_session_id | UUID | 关联 practice_sessions.id |
+| parent_task_id | UUID | 可为空，关联 ai_analysis_tasks.id，用于表示主任务与子任务关系 |
 | task_status | VARCHAR | 任务状态 |
 | task_type | VARCHAR | 任务类型 |
+| progress | INTEGER | 任务进度，范围为 0—100 |
+| current_stage | VARCHAR | 可为空，当前任务阶段 |
+| retry_count | INTEGER | 已重试次数，默认 0 |
+| max_retries | INTEGER | 最大重试次数，默认值由系统配置确定 |
 | started_at | TIMESTAMP | 开始时间 |
 | finished_at | TIMESTAMP | 结束时间 |
 | error_message | TEXT | 失败原因 |
@@ -287,21 +294,42 @@
 
 | 值 | 含义 |
 |---|---|
-| pending | 待处理 |
+| created | 已创建 |
+| waiting_for_upload | 等待媒体上传 |
 | uploading | 上传中 |
+| queued | 已进入任务队列 |
+| preprocessing | 媒体预处理中 |
 | processing | 分析中 |
-| success | 成功 |
+| aggregating | 正在汇总结构化结果 |
+| generating_feedback | 正在生成自然语言反馈 |
+| completed | 已完成 |
+| partially_completed | 部分模块完成 |
 | failed | 失败 |
+| cancelled | 已取消 |
 
 ### 10.4 task_type 建议值
 
 | 值 | 含义 |
 |---|---|
 | full_practice_analysis | 完整练习分析 |
+| media_preprocessing | 媒体预处理 |
 | pitch_analysis | 音准分析 |
 | rhythm_analysis | 节奏分析 |
 | posture_analysis | 姿势识别 |
 | bowing_analysis | 运弓分析 |
+| feedback_generation | 反馈生成 |
+
+### 10.5 主子任务说明
+
+第一版不新增数据库表，可通过 ai_analysis_tasks 现有字段和扩展字段表示主子任务关系。
+
+- `full_practice_analysis` 作为主任务，负责调度和汇总。
+- `media_preprocessing`、`pitch_analysis`、`rhythm_analysis`、`posture_analysis`、`bowing_analysis`、`feedback_generation` 作为子任务。
+- 子任务的 parent_task_id 关联主任务的 id。
+- progress 用于记录任务进度，current_stage 用于记录当前阶段。
+- retry_count 和 max_retries 用于实现有限次数的单模块重试。
+
+以上字段仅为数据库设计说明；本次不执行数据库迁移、不生成实际 SQL，也不增加额外表。
 
 ---
 
@@ -377,11 +405,11 @@
 3. 用户完成录音和录像。
 4. 系统创建 practice_media 记录。
 5. 用户提交 AI 分析。
-6. 系统创建 ai_analysis_tasks 记录，状态为 pending。
-7. AI 服务开始分析，任务状态更新为 processing。
-8. AI 分析完成，写入 ai_analysis_results。
+6. 系统创建 ai_analysis_tasks 主任务，状态为 created。
+7. 媒体预处理完成后，创建并调度分析子任务。
+8. 子任务完成后汇总结构化结果，写入 ai_analysis_results。
 9. AI 生成练习反馈，写入 ai_feedbacks。
-10. practice_sessions.status 更新为 analyzed。
+10. 根据任务完成情况，practice_sessions.status 更新为 analyzed 或 partially_analyzed。
 11. 用户可在练习记录详情页查看本次练习结果。
 
 ---
