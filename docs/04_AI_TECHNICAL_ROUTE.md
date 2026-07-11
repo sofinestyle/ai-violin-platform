@@ -333,11 +333,11 @@ LLM 不直接分析音视频。
 
 ---
 
-# Phase 7.1：AI 模块公共规范（AI Module Contract）
+## Phase 7.1：AI 模块公共规范（AI Module Contract）
 
 本章节定义 AI Pipeline 内部模块的公共运行契约。该契约仅约束 Python AI Service 内部模块之间的输入、输出、错误、重试与运行元数据，不修改已 Freeze 的 API、数据库结构、任务状态机或 Pipeline 流程。
 
-## 1. 模块职责边界
+### 1. 模块职责边界
 
 AI Pipeline 中的模块职责如下：
 
@@ -365,7 +365,7 @@ LLM 仅负责：
 - 教学解释
 - 练习建议
 
-## 2. 统一模块输入
+### 2. 统一模块输入
 
 每个 AI 模块使用统一输入上下文。上下文至少包括：
 
@@ -385,7 +385,7 @@ LLM 仅负责：
 
 模块只能读取 Media Preprocessing 的输出，不能直接读取客户端原始媒体，也不得信任客户端提供的媒体元数据。
 
-## 3. 统一模块输出
+### 3. 统一模块输出
 
 模块面向 Aggregation Service 输出的标准化结果必须与 Phase 6 已 Freeze 的 Analysis Result 协议保持一致，字段名称不得修改。统一输出字段为：
 
@@ -399,7 +399,7 @@ LLM 仅负责：
 
 其中 `status`、`score`、`rating`、`confidence`、`issues` 和 `warnings` 用于既有结构化结果；`rawResult` 仅用于内部保存和排障，不直接返回 APP。
 
-## 4. 状态规范
+### 4. 状态规范
 
 模块内部状态统一为：
 
@@ -412,7 +412,7 @@ LLM 仅负责：
 
 该内部状态规范不修改既有主任务状态机和对外 API 状态。
 
-## 5. Score 与 Confidence
+### 5. Score 与 Confidence
 
 `score` 表示用户在该模块评估维度上的表现；`confidence` 表示模型或规则对该分析结果的可信度。
 
@@ -420,7 +420,7 @@ LLM 仅负责：
 - 不得因 `confidence` 自动修改 `score`。
 - 低 `confidence` 应通过 `warnings`、不确定表达或 `rating = insufficient_data` 处理，并继续遵守既有低置信度展示规则。
 
-## 6. Issue 与 Warning
+### 6. Issue 与 Warning
 
 `issue` 表示用户练习中识别到的问题，例如音高偏差、节奏不稳、肩部过高或弓线倾斜。
 
@@ -433,7 +433,7 @@ LLM 仅负责：
 
 模块必须将用户表现问题和分析可靠性提醒分别写入 `issues` 与 `warnings`。
 
-## 7. Raw Result
+### 7. Raw Result
 
 `rawResult` 用于保存仅供内部处理、复核和排障使用的原始或中间结果，可包括：
 
@@ -445,7 +445,7 @@ LLM 仅负责：
 
 APP 不直接读取 `rawResult`。对普通用户的返回继续使用 Phase 6 已定义的标准化结构结果。
 
-## 8. 模块错误分类
+### 8. 模块错误分类
 
 AI Service 内部统一使用以下错误分类：
 
@@ -459,7 +459,7 @@ AI Service 内部统一使用以下错误分类：
 
 该分类仅作为 AI Service 内部规范，用于记录、排障和重试判断；不得替代或修改既有对外 API 错误码。
 
-## 9. 模块幂等
+### 9. 模块幂等
 
 模块执行实例的唯一标识为：
 
@@ -467,7 +467,7 @@ AI Service 内部统一使用以下错误分类：
 
 同一执行实例的重复调度不得产生冲突结果。成功结果不得被失败结果覆盖；重试仅能写入对应尝试的结果，并由既有任务流程依据有效结果重新汇总。
 
-## 10. Runtime Metadata
+### 10. Runtime Metadata
 
 每个模块结果可在内部 `runtimeMetadata` 中记录以下运行元数据：
 
@@ -481,11 +481,11 @@ AI Service 内部统一使用以下错误分类：
 
 ---
 
-# Phase 7.2：媒体预处理模块详细设计
+## Phase 7.2：媒体预处理模块详细设计
 
 本章节定义 `media_preprocessing` 模块的详细设计。它遵循 Phase 5、Phase 6 与 Phase 7.1 已 Freeze 的架构和模块契约；本章节中的 `qualityReport`、`moduleEligibility`、`runtimeMetadata` 及内部 URI 均为 AI Service 内部输出、JSONB 内部数据或受控存储引用，不新增数据库列或外部 API 字段。
 
-## 1. 模块定位
+### 1. 模块定位
 
 `media_preprocessing` 是所有 AI 分析模块的统一媒体入口，负责：
 
@@ -499,7 +499,7 @@ AI Service 内部统一使用以下错误分类：
 
 例如：“画面过暗”属于媒体预处理；“右肩过高”属于姿势识别；“琴弓不可见”属于媒体可分析性问题；“弓线倾斜”属于运弓分析问题。
 
-## 2. 总体流程
+### 2. 总体流程
 
 ```text
 客户端原始媒体
@@ -523,7 +523,7 @@ AI Service 内部统一使用以下错误分类：
 进入 Pitch / Rhythm / Posture / Bowing
 ```
 
-## 3. Media Service 与 Worker 职责边界
+### 3. Media Service 与 Worker 职责边界
 
 Media Service（FastAPI）负责：
 
@@ -539,7 +539,7 @@ Media Preprocessing Worker（Python AI Service）负责：
 - 执行基础降噪、抽帧、质量检测和时间轴检查。
 - 生成标准化媒体、质量报告和模块可执行性。
 
-## 4. 统一输入契约
+### 4. 统一输入契约
 
 内部输入至少包含：
 
@@ -556,13 +556,13 @@ Media Preprocessing Worker（Python AI Service）负责：
 - 不信任客户端声明的 MIME Type、后缀、时长、分辨率、帧率、采样率、声道数或视频方向；所有真实参数必须由后端媒体解析工具获取。
 - 音频或视频允许单独缺失；两者均不可用时，不得进入正常 AI 分析。
 
-## 5. 媒体工具路线
+### 5. 媒体工具路线
 
 第一版建议使用 FFmpeg 完成音频提取与转码、视频转码、采样率与声道统一、视频方向纠正、帧率处理、抽帧和时间轴处理；使用 FFprobe 解析 `codec`、`container`、`duration`、`sampleRate`、`channels`、`width`、`height`、`frameRate`、`rotation`、`stream`、`startTime` 和 `timeBase`。
 
 Python 辅助库可包括 `numpy`、`scipy`、`librosa`、`soundfile` 与 `opencv-python`，用于质量特征计算。FFmpeg / FFprobe 负责媒体工程处理，Python 库负责质量特征计算；本阶段只确定技术方向，不写死具体依赖版本。
 
-## 6. 音频预处理
+### 6. 音频预处理
 
 输入支持已 Freeze 的 `m4a`、`aac`、`wav` 以及视频中的音轨，真实支持情况以解码结果为准，而不是文件后缀。标准输出为 WAV、PCM、Mono、44.1 kHz，建议 codec 为 `pcm_s16le`。
 
@@ -588,13 +588,13 @@ Python 辅助库可包括 `numpy`、`scipy`、`librosa`、`soundfile` 与 `openc
 输出标准 WAV
 ```
 
-## 7. 降噪原则
+### 7. 降噪原则
 
 第一版只做保守降噪，不得音高校正、节奏修正、删除错误音、过度去除小提琴泛音，也不得使用明显改变起音时间的激进处理。
 
 建议同时保留标准化未降噪音频和轻度降噪分析音频。下游默认读取轻度降噪版本，必要时可回退至标准化原音。
 
-## 8. 音频质量检测
+### 8. 音频质量检测
 
 至少检测 RMS 音量、Peak 音量、动态范围、静音比例、削波比例、环境噪声、时长、解码稳定性和时间轴连续性。Warning Code 包括：
 
@@ -609,11 +609,11 @@ Python 辅助库可包括 `numpy`、`scipy`、`librosa`、`soundfile` 与 `openc
 
 具体阈值由工程配置和测试确定，本 SPEC 不写死。
 
-## 9. 视频预处理
+### 9. 视频预处理
 
 输入支持 `mp4`、`mov`；标准输出为 MP4、H.264。预处理必须保留原始宽高比例，不拉伸、不随意裁剪、不改变人物和乐器几何比例；应纠正视频方向并保持音视频时间轴。过高分辨率可合理缩放，但不得放大小分辨率视频。
 
-## 10. 视频方向处理
+### 10. 视频方向处理
 
 实际方向判断优先级为：
 
@@ -623,13 +623,13 @@ Python 辅助库可包括 `numpy`、`scipy`、`librosa`、`soundfile` 与 `openc
 
 纠正后必须保证演奏者方向正确、后续关键点模型可正常读取，并且不破坏音视频同步关系。
 
-## 11. 分辨率、帧率和抽帧
+### 11. 分辨率、帧率和抽帧
 
 本阶段不写死统一目标分辨率或 FPS，具体数值由后续工程测试确定。姿势分析可使用较低采样率；运弓分析需要更连续的帧序列；不得将所有视频统一降到过低帧率。
 
 预处理输出包括标准化视频、质量检测采样帧和带时间戳的 Frame Index。Frame Index 至少包括 `frameIndex`、`timestampSecond`、`sourceFrameNumber`，不得只输出没有时间戳的图片序列。
 
-## 12. 视频质量检测
+### 12. 视频质量检测
 
 基础检测包括平均亮度、过暗比例、过曝比例、模糊比例、黑屏比例、冻结帧或重复帧、严重画面抖动、人体是否存在、身体关键区域是否基本可见、小提琴是否基本可见，以及琴弓是否在足够帧中可见。
 
@@ -652,7 +652,7 @@ Video Warning Code 包括：
 
 `bow_not_visible` 只表示琴弓在视频中不可见或可见帧不足，属于媒体可分析性提醒；不得与运弓模块对弓线和轨迹的技术评价混用。
 
-## 13. 音视频时间轴
+### 13. 音视频时间轴
 
 统一使用相对于练习开始的 `0.000` 秒。分别记录原始起始时间、原始时长、标准化后时长、时间偏移、是否裁剪、是否补齐及时间轴是否连续。
 
@@ -660,7 +660,7 @@ Video Warning Code 包括：
 
 严重不同步时，音频模块和视频模块仍可独立执行，跨模块时间关联必须产生 Warning，不得伪造精确同步关系。
 
-## 14. Media Quality Report
+### 14. Media Quality Report
 
 统一输出 `qualityReport`：
 
@@ -675,7 +675,7 @@ synchronization: status, durationDifferenceSeconds, warnings
 
 媒体内部质量状态统一为 `usable`、`usable_with_warnings`、`insufficient_data`、`unusable`。这些属于 AI Service 内部质量状态，不修改外部 API 状态机。
 
-## 15. Module Eligibility
+### 15. Module Eligibility
 
 预处理必须明确返回 `pitch`、`rhythm`、`posture`、`bowing` 的 `eligible` 与 `reasonCodes`。
 
@@ -686,7 +686,7 @@ synchronization: status, durationDifferenceSeconds, warnings
 
 若音频可用、视频不可用，Pitch 与 Rhythm 执行，Posture 与 Bowing 跳过；主任务可进入既有 `partially_completed`，不应直接 `failed`。
 
-## 16. 统一输出契约
+### 16. 统一输出契约
 
 `media_preprocessing` 输出保持 Phase 7.1 Module Contract，包括 `module`、`status`、`score`、`rating`、`confidence`、`issues`、`warnings`、`rawResult`、`outputs`、`qualityReport`、`moduleEligibility` 和 `runtimeMetadata`。
 
@@ -698,7 +698,7 @@ synchronization: status, durationDifferenceSeconds, warnings
 
 内部 URI 不得返回 APP。
 
-## 17. 产物和存储
+### 17. 产物和存储
 
 产物可包括原始上传文件、标准化音频、轻度降噪音频、标准化视频、抽帧索引、质量报告和调试元数据。
 
@@ -707,7 +707,7 @@ synchronization: status, durationDifferenceSeconds, warnings
 - 媒体访问必须进行权限控制，下游 Worker 使用内部服务权限读取。
 - 临时文件必须按任务隔离、处理后清理、不与其他用户共享文件名，且不得直接使用用户原始文件名作为服务器路径。
 
-## 18. 错误和重试
+### 18. 错误和重试
 
 通常可重试的情况包括 FFmpeg 临时失败、Worker 异常退出、对象存储读取超时、临时磁盘或网络错误、服务器资源不足和结果保存失败。
 
@@ -715,14 +715,14 @@ synchronization: status, durationDifferenceSeconds, warnings
 
 已成功预处理产物不得被失败重试覆盖，失败重试不得删除成功产物，下游读取当前有效版本。
 
-## 19. 隐私和安全
+### 19. 隐私和安全
 
 - 原始媒体默认私有，禁止使用公开访问链接。
 - 普通日志不得写入媒体完整 URL，不得向 APP 返回服务器绝对路径。
 - 调试日志不得包含完整用户身份；Worker 只能访问当前任务所需媒体。
 - 临时文件及时清理，用户媒体不得默认用于模型训练；后续训练用途必须另行获得明确授权。
 
-## 20. Phase 7.2 Freeze
+### 20. Phase 7.2 Freeze
 
 本阶段 Freeze：
 
