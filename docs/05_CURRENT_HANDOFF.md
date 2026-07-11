@@ -17,7 +17,7 @@
 
 当前处于：
 
-> Phase 5.2：AI Pipeline 设计已完成并 Freeze
+> Phase 6.1：API 规范设计已完成并 Freeze
 
 ---
 
@@ -92,7 +92,21 @@ docs/07_DATABASE_SCHEMA.md
 - AI 输出协议
 - LLM 职责
 
-### 2.5 长期目标
+### 2.5 Phase 6.1 已完成内容
+
+- API Specification
+- REST API
+- URL 命名
+- API Version
+- JSON 返回格式
+- 分页规范
+- 错误码
+- UUID
+- Token
+- 上传规范
+- Polling
+
+### 2.6 长期目标
 
 项目长期目标不是单一软件，而是构建 AI Music Platform。
 
@@ -107,7 +121,7 @@ docs/07_DATABASE_SCHEMA.md
 
 ---
 
-### 2.6 工作方式
+### 2.7 工作方式
 
 项目采用文档驱动开发：
 
@@ -127,7 +141,7 @@ Codex 开发
 
 ---
 
-### 2.7 角色分工
+### 2.8 角色分工
 
 项目经理：用户本人。
 
@@ -151,7 +165,7 @@ Codex 承担：
 
 ---
 
-### 2.8 文档管理方式
+### 2.9 文档管理方式
 
 由于 ChatGPT 对话会被自动压缩，因此后续以 GitHub 中的 Markdown 文档作为项目长期记忆。
 
@@ -192,7 +206,7 @@ Codex 更新 GitHub 文档
 
 下一阶段为：
 
-> Phase 6：API Interface Design
+> Phase 6.2：业务 API Interface Design
 
 ---
 

@@ -206,3 +206,44 @@ APP 查询并展示结果
 - AI 分析服务：Python
 - 文件存储：第一阶段先使用本地或服务器存储，后续再接云存储
 - 部署：先本地开发和测试，后续部署到云服务器
+
+---
+
+## 11. API 架构规范
+
+### 11.1 API 风格
+
+第一阶段采用：
+
+- RESTful API
+
+第一阶段不采用：
+
+- GraphQL
+- gRPC
+- SOAP
+
+### 11.2 API 版本
+
+统一使用：
+
+`/api/v1/`
+
+以后升级使用：
+
+`/api/v2/`
+
+### 11.3 API 分组
+
+统一采用：
+
+- /auth
+- /users
+- /scores
+- /practice-sessions
+- /practice-media
+- /analysis/tasks
+- /analysis/results
+- /analysis/feedbacks
+
+每组保持职责单一。

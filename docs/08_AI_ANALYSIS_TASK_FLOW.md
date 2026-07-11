@@ -506,3 +506,157 @@ LLM 仅负责：
 - LLM 职责
 - Confidence 输出
 - Warning 输出
+
+---
+
+## 18. API 协议规范
+
+### 18.1 URL 规范
+
+统一使用：
+
+- 小写
+- 英文
+- 复数资源
+- kebab-case
+
+例如：
+
+- practice-sessions
+- analysis-tasks
+
+### 18.2 HTTP Method
+
+统一使用：
+
+| Method | 用途 |
+|---|---|
+| GET | 查询资源或资源列表。 |
+| POST | 创建资源、提交操作或触发任务。 |
+| PUT | 完整替换资源。 |
+| PATCH | 部分更新资源。 |
+| DELETE | 删除资源。 |
+
+### 18.3 返回格式
+
+成功：
+
+```json
+{
+  "success": true,
+  "code": 0,
+  "message": "OK",
+  "data": {}
+}
+```
+
+失败：
+
+```json
+{
+  "success": false,
+  "code": 4001,
+  "message": "错误信息",
+  "data": null
+}
+```
+
+### 18.4 分页规范
+
+请求：
+
+`?page=1&pageSize=20`
+
+返回包含：
+
+- items
+- page
+- pageSize
+- total
+- totalPages
+
+### 18.5 时间规范
+
+统一使用：
+
+- UTC
+- ISO8601
+
+例如：
+
+`2026-07-12T09:35:21Z`
+
+### 18.6 UUID
+
+所有资源主键统一使用：
+
+UUID。
+
+### 18.7 JSON 命名
+
+JSON 统一使用：
+
+camelCase。
+
+数据库统一使用：
+
+snake_case。
+
+### 18.8 文件上传
+
+统一使用：
+
+`multipart/form-data`。
+
+### 18.9 AI 查询方式
+
+第一版采用轮询：
+
+```text
+GET
+/api/v1/analysis/tasks/{taskId}
+```
+
+暂不采用：
+
+- WebSocket
+
+### 18.10 Bearer Token
+
+统一使用：
+
+`Authorization: Bearer Token`
+
+### 18.11 错误码规范
+
+统一错误码如下：
+
+| 错误码 | 含义 |
+|---|---|
+| 0 | 成功 |
+| 4001 | 参数错误 |
+| 4010 | Token 无效或已过期 |
+| 4030 | 无权限访问资源 |
+| 4101 | 上传失败 |
+| 4102 | 媒体错误 |
+| 5001 | AI 分析失败 |
+| 5000 | 系统异常 |
+
+### 18.12 Phase 6.1 Freeze
+
+本阶段冻结：
+
+- RESTful API
+- API Version
+- URL Naming
+- HTTP Method
+- JSON Format
+- Pagination
+- Error Code
+- UUID
+- UTC Time
+- Upload Protocol
+- Polling Strategy
+- Bearer Token
+- JSON camelCase
+- DB snake_case

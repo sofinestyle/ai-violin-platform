@@ -271,3 +271,29 @@ LLM 只负责：
 - 建议
 
 避免 LLM 直接产生不可解释分析结果。
+
+---
+
+## 13. AI 服务与 API 的关系
+
+FastAPI 负责：
+
+- 用户请求
+- 权限
+- 数据管理
+- Task 调度
+
+Python AI Service 负责：
+
+- Media Preprocessing
+- Pitch
+- Rhythm
+- Posture
+- Bowing
+- Aggregation
+
+LLM 负责：
+
+- Feedback Generation
+
+LLM 不直接分析音视频。

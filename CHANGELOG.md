@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 2026-07-11｜Phase 6.1
+
+### 更新
+
+- docs/03_SYSTEM_ARCHITECTURE.md
+- docs/04_AI_TECHNICAL_ROUTE.md
+- docs/08_AI_ANALYSIS_TASK_FLOW.md
+- docs/05_CURRENT_HANDOFF.md
+
+### Freeze
+
+- REST API
+- API Version
+- Response Format
+- Pagination
+- Error Code
+- Token
+- Upload Protocol
+- Polling Strategy
+
 ## 2026-07-11｜Phase 5.2
 
 ### 更新
