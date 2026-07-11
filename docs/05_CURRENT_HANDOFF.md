@@ -17,7 +17,7 @@
 
 当前处于：
 
-> Phase 6.2 第一部分：Auth + Users API 设计已完成并 Freeze
+> Phase 6.2 第二部分：Scores API 设计已完成并 Freeze
 
 ---
 
@@ -66,7 +66,7 @@ docs/07_DATABASE_SCHEMA.md
 数据库第一版采用：
 
 - PostgreSQL
-- 8 张核心表
+- 9 张核心表
 - 结构化字段 + JSONB 扩展字段
 - 支撑用户、曲谱、练习记录、音视频文件、AI 分析任务、AI 分析结果和 AI 反馈
 
@@ -123,7 +123,21 @@ docs/07_DATABASE_SCHEMA.md
 - 认证错误码
 - 认证安全规则
 
-### 2.7 长期目标
+### 2.7 Phase 6.2 第二部分已完成内容
+
+- Scores 资源 API
+- 曲谱列表接口
+- 曲谱详情接口
+- 曲谱基准数据接口
+- 曲谱分页及基础筛选
+- 普通用户只读权限
+- 第一版不设计推荐专用接口
+- 第一版不设计分类、标签和曲集
+- 独立 score_notes 表
+- 曲谱基准数据由后端提供
+- 第一版 9 张核心表
+
+### 2.8 长期目标
 
 项目长期目标不是单一软件，而是构建 AI Music Platform。
 
@@ -138,7 +152,7 @@ docs/07_DATABASE_SCHEMA.md
 
 ---
 
-### 2.8 工作方式
+### 2.9 工作方式
 
 项目采用文档驱动开发：
 
@@ -158,7 +172,7 @@ Codex 开发
 
 ---
 
-### 2.9 角色分工
+### 2.10 角色分工
 
 项目经理：用户本人。
 
@@ -182,7 +196,7 @@ Codex 承担：
 
 ---
 
-### 2.10 文档管理方式
+### 2.11 文档管理方式
 
 由于 ChatGPT 对话会被自动压缩，因此后续以 GitHub 中的 Markdown 文档作为项目长期记忆。
 
@@ -223,7 +237,7 @@ Codex 更新 GitHub 文档
 
 下一阶段为：
 
-> Phase 6.2 第二部分：Scores API 设计
+> Phase 6.2 第三部分：Practice Sessions + Practice Media API 设计
 
 ---
 

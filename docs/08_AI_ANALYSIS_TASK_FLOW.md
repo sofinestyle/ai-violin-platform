@@ -1019,3 +1019,235 @@ Auth 和 Users 错误码如下：
 - 手机号、邮箱根据使用场景进行脱敏。
 - 登录错误不得暴露账号是否存在。
 - 不得在 API 返回中输出 password_hash。
+
+---
+
+## 20. Scores API 设计
+
+### 20.1 Scores 资源职责
+
+Scores API 负责：
+
+- 曲谱列表
+- 曲谱详情
+- 难度筛选
+- 学习阶段筛选
+- 曲谱名称搜索
+- 曲谱文件读取
+- 示范音频读取
+- AI 分析所需曲谱基准数据读取
+
+统一前缀：
+
+`/api/v1/scores`
+
+第一版曲谱由平台内置，普通用户只能查询和练习。
+
+### 20.2 曲谱列表接口
+
+`GET /api/v1/scores`
+
+支持查询参数：
+
+- page
+- pageSize
+- difficulty
+- suitableStage
+- keyword
+
+示例：
+
+`GET /api/v1/scores?page=1&pageSize=20&difficulty=easy&suitableStage=beginner&keyword=小星星`
+
+| 参数 | 是否必填 | 说明 |
+|---|---|---|
+| page | 否 | 页码，默认 1 |
+| pageSize | 否 | 每页数量，默认 20 |
+| difficulty | 否 | 难度筛选 |
+| suitableStage | 否 | 学习阶段筛选 |
+| keyword | 否 | 曲谱名称关键词 |
+
+返回遵循 Phase 6.1 分页规范。
+
+列表项至少返回：
+
+- id
+- title
+- difficulty
+- suitableStage
+- estimatedSeconds
+- isBeginnerFriendly
+- coverImageUrl
+
+列表接口不返回：
+
+- 完整曲谱文件内容
+- 完整音符时间轴
+- score_notes 全量数据
+- AI 原始基准数据
+- 大段曲谱说明
+
+### 20.3 曲谱详情接口
+
+`GET /api/v1/scores/{scoreId}`
+
+返回至少包括：
+
+- id
+- title
+- difficulty
+- suitableStage
+- estimatedSeconds
+- description
+- practiceGoal
+- scoreFileUrl
+- demoAudioUrl
+- coverImageUrl
+- tempo
+- timeSignature
+- isActive
+- createdAt
+- updatedAt
+
+如果曲谱不存在，返回：
+
+```text
+code: 2001
+message: 曲谱不存在
+```
+
+如果曲谱已停用，返回：
+
+```text
+code: 2002
+message: 曲谱已停用
+```
+
+### 20.4 曲谱基准数据接口
+
+`GET /api/v1/scores/{scoreId}/reference`
+
+用途：
+
+- AI 音准分析
+- AI 节奏分析
+- 练习过程中的基础读谱数据
+- 后端 AI 服务读取标准答案
+
+返回至少包括：
+
+- scoreId
+- tempo
+- timeSignature
+- notes
+
+其中 notes 来源于独立 score_notes 表。
+
+返回示例：
+
+```json
+{
+  "success": true,
+  "code": 0,
+  "message": "OK",
+  "data": {
+    "scoreId": "uuid",
+    "tempo": 80,
+    "timeSignature": "4/4",
+    "notes": [
+      {
+        "index": 1,
+        "pitch": "G4",
+        "midi": 67,
+        "measure": 1,
+        "startBeat": 0,
+        "durationBeat": 1
+      }
+    ]
+  }
+}
+```
+
+- APP 可读取必要的练习基准数据。
+- AI 服务必须以后端数据库中的正式基准数据为准。
+- APP 不得向 AI 服务提交或覆盖曲谱标准答案。
+- AI 服务不能信任客户端上传的参考音符数据。
+
+### 20.5 推荐曲谱处理
+
+第一版不新增：
+
+`GET /api/v1/scores/recommended`
+
+首页推荐曲谱继续使用：
+
+`GET /api/v1/scores?suitableStage=beginner&pageSize=3`
+
+原因：
+
+- 第一版只有少量内置曲谱。
+- 现有筛选能力已经足够。
+- 避免重复 API。
+- 后续真正引入个性化推荐算法后再设计推荐接口。
+
+### 20.6 第一版暂不设计的接口
+
+不得新增：
+
+- `GET /api/v1/scores/categories`
+- `GET /api/v1/scores/tags`
+- `GET /api/v1/scores/collections`
+- `POST /api/v1/scores`
+- `PATCH /api/v1/scores/{scoreId}`
+- `DELETE /api/v1/scores/{scoreId}`
+
+第一版暂不支持：
+
+- 用户上传曲谱
+- 用户编辑曲谱
+- 用户删除曲谱
+- 曲谱分类
+- 曲谱标签
+- 曲集
+- 任意曲谱图片实时解析
+- 普通用户维护曲谱基准音符
+
+### 20.7 权限规则
+
+以下接口第一版均需要登录：
+
+- `GET /api/v1/scores`
+- `GET /api/v1/scores/{scoreId}`
+- `GET /api/v1/scores/{scoreId}/reference`
+
+第一版不开放匿名曲谱 API。
+
+普通用户只有读取权限。
+
+### 20.8 Scores 错误码
+
+| 错误码 | 含义 |
+|---|---|
+| 2001 | 曲谱不存在 |
+| 2002 | 曲谱已停用 |
+| 2003 | 曲谱基准数据不存在 |
+| 2004 | 曲谱文件暂不可用 |
+| 2005 | 示范音频暂不可用 |
+
+错误响应继续使用统一格式。
+
+### 20.9 Scores API Freeze
+
+本阶段冻结：
+
+- Scores 使用资源 API。
+- 曲谱列表接口。
+- 曲谱详情接口。
+- 曲谱基准数据接口。
+- 分页及基础筛选。
+- 不新增推荐专用接口。
+- 不新增分类、标签、曲集接口。
+- 普通用户只读。
+- 所有 Scores API 第一版需要登录。
+- 曲谱标准答案由后端数据库提供。
+- 曲谱结构化音符使用独立 score_notes 表。

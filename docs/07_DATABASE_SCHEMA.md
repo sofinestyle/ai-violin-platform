@@ -56,17 +56,24 @@
 
 曲谱 → 练习记录
 
+scores
+↓
+score_notes
+
+一首曲谱对应多个曲谱音符记录。
+
 ---
 
 ## 4. 第一版核心表
 
-第一版建议设计 8 张核心表：
+第一版建议设计 9 张核心表：
 
 | 表名 | 作用 |
 |---|---|
 | users | 用户账号基础信息 |
 | user_profiles | 用户学习资料 |
 | scores | 内置曲谱 |
+| score_notes | 保存内置曲谱的结构化音符和时间轴基准数据 |
 | practice_sessions | 练习记录 |
 | practice_media | 练习音频和视频文件 |
 | ai_analysis_tasks | AI 分析任务 |
@@ -154,6 +161,10 @@
 | score_file_url | TEXT | 曲谱文件地址 |
 | demo_audio_url | TEXT | 示范音频地址 |
 | description | TEXT | 曲谱说明 |
+| cover_image_url | TEXT | 曲谱封面图，可为空 |
+| practice_goal | TEXT | 该曲谱的练习目标 |
+| tempo | INTEGER | 默认速度，单位 BPM |
+| time_signature | VARCHAR | 拍号，例如 4/4 |
 | is_active | BOOLEAN | 是否启用 |
 | created_at | TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | 更新时间 |
@@ -175,6 +186,64 @@
 | 欢乐颂 | 入门练习 |
 | 简单音阶练习 | 音准练习 |
 | 空弦练习 | 基础运弓练习 |
+
+score_file_url 保存曲谱文件地址，demo_audio_url 保存示范音频。tempo 和 time_signature 属于曲谱级基准信息；具体音符时间轴不放入 scores 表，也不新增 reference_data JSONB 字段。
+
+### 7.5 score_notes 表
+
+#### 表作用
+
+保存每首内置曲谱的标准音符、节拍位置、小节位置和时值，为音准和节奏分析提供可信基准数据。
+
+#### 建议字段
+
+| 字段 | 类型建议 | 说明 |
+|---|---|---|
+| id | UUID | 音符记录 ID |
+| score_id | UUID | 关联 scores.id |
+| note_index | INTEGER | 音符在曲谱中的顺序编号 |
+| pitch | VARCHAR | 音名，例如 G4、A4 |
+| midi | INTEGER | MIDI 音高编号 |
+| measure_number | INTEGER | 所属小节编号 |
+| start_beat | NUMERIC | 音符开始拍位置 |
+| duration_beat | NUMERIC | 音符持续拍数 |
+| start_seconds | NUMERIC | 标准时间轴开始秒数，可为空 |
+| duration_seconds | NUMERIC | 标准时长秒数，可为空 |
+| string_name | VARCHAR | 建议琴弦，例如 G、D、A、E，可为空 |
+| fingering | VARCHAR | 建议指法，可为空 |
+| extra_data | JSONB | 少量扩展数据，可为空 |
+| created_at | TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | 更新时间 |
+
+#### 约束建议
+
+- score_id 外键关联 scores.id。
+- note_index 必须大于等于 1。
+- 同一曲谱内 note_index 不应重复。
+- 建议建立唯一约束：(score_id, note_index)。
+- 建议建立索引：score_id、(score_id, measure_number)。
+
+#### 数据职责
+
+- scores 保存曲谱主信息。
+- score_notes 保存音符级标准数据。
+- 音准、节奏分析读取 score_notes。
+- 普通用户不能直接修改 score_notes。
+- 第一版由项目方提前录入少量内置曲谱数据。
+- 第一版不实现任意曲谱自动解析后直接写入数据库。
+
+#### 数据库扩展原则
+
+选择独立 score_notes 表的原因：
+
+- 音符是结构化、可排序的数据。
+- 后续需要按曲谱、小节、音符查询。
+- 更适合音准和节奏分析。
+- 避免将大量音符数据塞入单个 JSONB 字段。
+- 后续扩展指法、琴弦、时间轴更清晰。
+- 更利于数据校验和维护。
+
+该新增表属于项目经理明确确认的必要结构调整，不视为需求漂移。
 
 ---
 
@@ -438,7 +507,7 @@
 第一版数据库采用：
 
 - PostgreSQL
-- 8 张核心表
+- 9 张核心表
 - 结构化字段 + JSONB 扩展字段
 - 优先支撑 MVP 练习闭环
 - 为未来 AI 分析增强和智能硬件接入预留扩展空间

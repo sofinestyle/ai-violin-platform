@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## 2026-07-11｜Phase 6.2 第二部分
+
+### 更新
+
+- docs/03_SYSTEM_ARCHITECTURE.md
+- docs/04_AI_TECHNICAL_ROUTE.md
+- docs/05_CURRENT_HANDOFF.md
+- docs/07_DATABASE_SCHEMA.md
+- docs/08_AI_ANALYSIS_TASK_FLOW.md
+- CHANGELOG.md
+
+### Freeze
+
+- Scores 采用资源 API
+- GET /api/v1/scores
+- GET /api/v1/scores/{scoreId}
+- GET /api/v1/scores/{scoreId}/reference
+- 支持分页、难度、学习阶段和关键词筛选
+- 第一版不新增推荐专用接口
+- 第一版不新增分类、标签和曲集接口
+- 普通用户只能读取内置曲谱
+- Scores API 第一版需要登录
+- 曲谱标准答案由后端数据库提供
+- 新增独立 score_notes 表
+- 第一版数据库核心表由 8 张调整为 9 张
+- 不采用 scores.reference_data JSONB
+
 ## 2026-07-11｜Phase 6.2 第一部分
 
 ### 更新

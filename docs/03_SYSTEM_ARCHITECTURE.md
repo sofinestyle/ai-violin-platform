@@ -287,3 +287,13 @@ API 围绕以下业务资源组织：
 - 与 RESTful API 规范一致。
 
 资源 API 是 Phase 6.2 已确认架构原则。
+
+### 11.5 曲谱服务与基准数据
+
+- Scores Service 负责曲谱主信息。
+- Score Reference Service 或 Scores Service 内部基准模块负责读取 score_notes。
+- APP 读取曲谱展示数据。
+- AI Service 通过后端读取正式音符基准数据。
+- 客户端上传的音符基准不得作为可信标准答案。
+
+保持现有总体架构不变，不新增新的系统一级模块。
