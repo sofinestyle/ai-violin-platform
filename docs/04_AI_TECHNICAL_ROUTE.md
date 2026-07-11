@@ -734,3 +734,177 @@ synchronization: status, durationDifferenceSeconds, warnings
 - 严重不同步时不伪造同步关系。
 - 媒体文件不存入 PostgreSQL，原始媒体默认私有，用户媒体不默认用于训练。
 - 不修改数据库或 API；具体阈值、分辨率和 FPS 由后续工程测试配置。
+
+---
+
+## Phase 7.3：Pitch Analysis（音准分析模块）
+
+本章节定义 Pitch Analysis 的详细设计，遵循已 Freeze 的 AI Module Contract 与 Media Preprocessing 输出，不修改数据库、API、主任务和子任务架构或其他模块职责。
+
+### 1. 模块定位
+
+Pitch Analysis 负责音高检测、音符候选识别、音符分割、与 `score_notes` 对齐、cents 偏差计算、偏高/偏低判断、错音/漏音/多余音识别、音准评分和模块置信度。
+
+该模块不负责节奏评分、姿势分析、运弓分析、LLM Feedback、自动修音或调音器功能。
+
+### 2. Pitch Pipeline
+
+```text
+标准化音频
+↓
+音频有效区间检测
+↓
+Pitch Detection
+↓
+Voiced / Unvoiced
+↓
+音符候选分割
+↓
+滑音、抖动处理
+↓
+Score Alignment
+↓
+Note Evaluation
+↓
+Measure Summary
+↓
+Pitch Result
+```
+
+### 3. 输入契约
+
+统一输入至少包括：
+
+- `taskId`
+- `practiceSessionId`
+- `normalizedAudio`
+- `denoisedAudio`
+- `scoreReference`
+- `qualityContext`
+- `userContext`
+- `execution`
+
+模块必须读取 `score_notes` 作为曲谱基准，不得相信客户端提交的目标音符。
+
+### 4. 曲谱标准数据
+
+Pitch Analysis 使用 `score_notes`，至少读取：
+
+- `MIDI`
+- `expectedPitch`
+- `expectedStartSecond`
+- `expectedDurationSecond`
+- `measure`
+- `beat`
+
+第一版不实时解析任意曲谱图片。
+
+### 5. Pitch Detection
+
+Pitch Detection 输出连续音高轨迹，每个采样点至少包括 `timestamp`、`frequency`、`midiFloat`、`confidence`、`voiced`。
+
+本阶段不锁定 YIN、pYIN、CREPE 或其他具体算法；模型可以替换，但输出协议必须保持一致。
+
+### 6. Voiced / Unvoiced
+
+模块必须区分乐音、静音、噪声和不确定区间，避免噪声生成虚假音符。
+
+### 7. Pitch Smoothing
+
+允许使用 Median、平滑、异常点过滤和连续区间合并，以提高轨迹稳定性。不得修正用户音高，不得人为提高分数。
+
+### 8. Note Segmentation
+
+音符候选可来自起音、Pitch Jump、静音、曲谱时间和音量变化。输出为 Detected Note，供后续与 `score_notes` 建立对应关系。
+
+### 9. Score Alignment
+
+Pitch 与 `score_notes` 进行序列对齐，可采用 DTW、Sequence Alignment、DP 或其他可替换算法。本模块只负责音符对应关系，不负责节奏评分。
+
+### 10. Cents
+
+统一使用 `deviationCents`：正值表示偏高，负值表示偏低。具体判断阈值由后续工程配置和测试确定，本阶段不写死。
+
+### 11. 音符状态
+
+统一音符状态：
+
+- `accurate`
+- `slightly_high`
+- `high`
+- `slightly_low`
+- `low`
+- `wrong_note`
+- `missed`
+- `extra`
+- `insufficient_data`
+
+### 12. Vibrato / Slide
+
+第一版兼容 Vibrato 和 Slide 对音高轨迹的影响，但不进行专业评价。必要时可将滑音过程与稳定音区分，避免将其直接误判为持续音准错误。
+
+### 13. Harmonic
+
+模块兼容空弦、泛音和倍频误判，可使用 Harmonic Consistency 辅助判断，避免将倍频或泛音现象直接识别为错误音。
+
+### 14. Polyphonic
+
+第一版正式支持单音旋律，不支持双音、和弦或多声部评分。检测到多声部音频时应输出相应 Warning，不得伪造单音评分结果。
+
+### 15. Issue Code
+
+统一 Issue Code：
+
+- `pitch_high`
+- `pitch_low`
+- `wrong_note`
+- `missed_note`
+- `extra_note`
+- `pitch_unstable`
+- `pitch_slide_into_note`
+- `pitch_insufficient_data`
+
+### 16. Warning
+
+统一 Warning：
+
+- `background_noise_high`
+- `pitch_tracking_unstable`
+- `harmonic_ambiguity`
+- `polyphonic_audio_detected`
+- `score_alignment_low_confidence`
+- `unsupported_pitch_range`
+
+### 17. Pitch Score
+
+Pitch Score 综合准确率、偏差比例、错音、漏音、多余音和稳定性，输出 `score`、`rating`、`confidence`。`score` 表示用户表现，`confidence` 表示分析可信度，不得因 `confidence` 修改 `score`。
+
+### 18. Runtime Metadata
+
+统一使用 `runtimeMetadata`，包括 `modelName`、`modelVersion`、`ruleVersion`、`pipelineVersion`、`processingTimeMs`。这些属于 JSONB 内部数据，不新增数据库字段或外部 API 字段。
+
+### 19. MVP 范围
+
+第一版范围：
+
+- 单音旋律
+- 初学者曲谱
+- 不支持双音评分
+- 不支持专业 Vibrato 评价
+- 不支持实时调音
+
+### 20. Phase 7.3 Freeze
+
+本阶段 Freeze：
+
+- Pitch Boundary
+- Pitch Pipeline
+- Pitch Detection
+- Score Alignment
+- Cents
+- Note Status
+- Pitch Issue Code
+- Pitch Warning
+- Pitch Score
+- Runtime Metadata
+- MVP Scope

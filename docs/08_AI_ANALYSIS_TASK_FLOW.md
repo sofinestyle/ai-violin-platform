@@ -2530,3 +2530,37 @@ FFmpeg 临时失败、Worker 异常退出、受控存储读取超时、临时磁
 ### 10. Privacy and Storage
 
 原始媒体默认私有，Worker 通过内部服务权限读取当前任务所需媒体。大型媒体存放于对象存储或受控文件存储，PostgreSQL 仅保存结构化元数据和内部引用，不保存完整音视频二进制。不得使用公开链接、在普通日志写入完整媒体 URL，或向 APP 返回服务器绝对路径。临时文件必须按任务隔离并及时清理；用户媒体不默认用于模型训练。
+
+---
+
+## Phase 7.3：Pitch Analysis Contract
+
+本章节定义 Pitch Analysis 的内部处理契约，不修改既有 API、状态机、数据库或 Pipeline 主流程。
+
+### Pitch Input
+
+输入至少包括 `taskId`、`practiceSessionId`、`normalizedAudio`、`denoisedAudio`、`scoreReference`、`qualityContext`、`userContext` 与 `execution`。模块必须读取 `score_notes`，不得相信客户端目标音符；`qualityContext` 用于识别噪声、静音和其他媒体可靠性限制。
+
+### Pitch Pipeline
+
+处理顺序为：标准化音频、有效区间检测、Pitch Detection、Voiced / Unvoiced 区分、音符候选分割、滑音与抖动处理、Score Alignment、Note Evaluation、Measure Summary、Pitch Result。检测输出连续轨迹，至少包括 `timestamp`、`frequency`、`midiFloat`、`confidence`、`voiced`；不锁定具体算法或模型。
+
+### Score Alignment
+
+模块将 Detected Note 与 `score_notes` 的 `MIDI`、`expectedPitch`、`expectedStartSecond`、`expectedDurationSecond`、`measure`、`beat` 进行序列对齐。可采用 DTW、Sequence Alignment、DP 或其他可替换算法。该过程只建立音符对应关系，不承担节奏评分。
+
+### Note Evaluation
+
+统一使用 `deviationCents`，正值为偏高、负值为偏低，阈值由后续工程配置确定。音符状态为 `accurate`、`slightly_high`、`high`、`slightly_low`、`low`、`wrong_note`、`missed`、`extra`、`insufficient_data`。
+
+第一版兼容 Vibrato、Slide、空弦、泛音与倍频歧义，但不做专业评价；仅正式支持单音旋律，不支持双音、和弦或多声部评分。
+
+### Pitch Output
+
+输出遵循 Phase 7.1 Module Contract，包含 `status`、`score`、`rating`、`confidence`、`issues`、`warnings`、`rawResult` 与 `runtimeMetadata`。Issue Code 为 `pitch_high`、`pitch_low`、`wrong_note`、`missed_note`、`extra_note`、`pitch_unstable`、`pitch_slide_into_note`、`pitch_insufficient_data`；Warning 为 `background_noise_high`、`pitch_tracking_unstable`、`harmonic_ambiguity`、`polyphonic_audio_detected`、`score_alignment_low_confidence`、`unsupported_pitch_range`。
+
+Pitch Score 综合准确率、偏差比例、错音、漏音、多余音和稳定性。`score` 表示用户表现，`confidence` 表示分析可信度，不得因 `confidence` 修改 `score`。`runtimeMetadata` 是 JSONB 内部数据，不新增数据库或对外 API 字段。
+
+### Pitch Retry
+
+临时模型异常、受控存储读取超时、Worker 异常退出或结果保存失败可按既有单模块重试流程处理。音频完全不可解码、无有效声音、曲谱基准缺失或检测到不支持的多声部时，应返回明确的 `insufficient_data`、Issue 或 Warning，不得无限重试。成功结果不得被失败重试覆盖。
