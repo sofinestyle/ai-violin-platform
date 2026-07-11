@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## 2026-07-12｜Phase 7.2
+
+### 更新
+
+- docs/04_AI_TECHNICAL_ROUTE.md
+- docs/08_AI_ANALYSIS_TASK_FLOW.md
+- docs/05_CURRENT_HANDOFF.md
+- CHANGELOG.md
+
+### Freeze
+
+- Media Preprocessing Boundary
+- Audio Normalization
+- Video Normalization
+- Media Quality Report
+- Module Eligibility
+- Timeline and Synchronization
+- Partial Media Availability
+- Media Storage and Privacy
+- Preprocessing Retry Rules
+
 ## 2026-07-12｜Phase 7.1
 
 ### 更新

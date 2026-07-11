@@ -478,3 +478,259 @@ AI Service 内部统一使用以下错误分类：
 - `processingTimeMs`
 
 第一版仅将 `runtimeMetadata` 作为 JSONB 内部元数据使用，不新增数据库字段，也不改变对外 API 返回字段。
+
+---
+
+# Phase 7.2：媒体预处理模块详细设计
+
+本章节定义 `media_preprocessing` 模块的详细设计。它遵循 Phase 5、Phase 6 与 Phase 7.1 已 Freeze 的架构和模块契约；本章节中的 `qualityReport`、`moduleEligibility`、`runtimeMetadata` 及内部 URI 均为 AI Service 内部输出、JSONB 内部数据或受控存储引用，不新增数据库列或外部 API 字段。
+
+## 1. 模块定位
+
+`media_preprocessing` 是所有 AI 分析模块的统一媒体入口，负责：
+
+- 解析客户端上传的音频和视频。
+- 验证文件是否真实可用，并读取真实媒体元数据。
+- 转换为统一格式，进行基础质量检测和音视频时间轴校验。
+- 生成标准化媒体产物、`Media Quality Report` 与 `Module Eligibility`。
+- 为下游 AI 模块提供统一输入。
+
+该模块不负责音高检测、节奏评分、姿势判断、琴弓轨迹评价、综合评分、LLM Feedback 或用户演奏技术判断。
+
+例如：“画面过暗”属于媒体预处理；“右肩过高”属于姿势识别；“琴弓不可见”属于媒体可分析性问题；“弓线倾斜”属于运弓分析问题。
+
+## 2. 总体流程
+
+```text
+客户端原始媒体
+↓
+文件完整性检查
+↓
+真实格式和元数据解析
+↓
+音频 / 视频标准化
+↓
+基础质量检测
+↓
+音视频时间轴校验
+↓
+生成标准化媒体产物
+↓
+生成 Media Quality Report
+↓
+生成 Module Eligibility
+↓
+进入 Pitch / Rhythm / Posture / Bowing
+```
+
+## 3. Media Service 与 Worker 职责边界
+
+Media Service（FastAPI）负责：
+
+- 用户权限检查、接收媒体上传和文件大小、上传协议检查。
+- 创建和更新 `practice_media`、保存原始媒体。
+- 投递 `media_preprocessing` 子任务、返回媒体处理状态。
+- 管理存储引用和访问权限。
+
+Media Preprocessing Worker（Python AI Service）负责：
+
+- 读取内部受控存储中的原始媒体。
+- 解析真实媒体参数，完成音频提取与转码、视频方向纠正与转码。
+- 执行基础降噪、抽帧、质量检测和时间轴检查。
+- 生成标准化媒体、质量报告和模块可执行性。
+
+## 4. 统一输入契约
+
+内部输入至少包含：
+
+- `taskId`
+- `practiceSessionId`
+- `module`
+- `media.audio`
+- `media.video`
+- `execution`
+
+`media.audio` 和 `media.video` 可包含 `mediaId`、`sourceUri`、`declaredMimeType`、`declaredFileSize` 与 `declaredOrientation`。
+
+- `sourceUri` 必须是内部受控存储引用，Worker 不接受公开 URL 作为正式生产输入。
+- 不信任客户端声明的 MIME Type、后缀、时长、分辨率、帧率、采样率、声道数或视频方向；所有真实参数必须由后端媒体解析工具获取。
+- 音频或视频允许单独缺失；两者均不可用时，不得进入正常 AI 分析。
+
+## 5. 媒体工具路线
+
+第一版建议使用 FFmpeg 完成音频提取与转码、视频转码、采样率与声道统一、视频方向纠正、帧率处理、抽帧和时间轴处理；使用 FFprobe 解析 `codec`、`container`、`duration`、`sampleRate`、`channels`、`width`、`height`、`frameRate`、`rotation`、`stream`、`startTime` 和 `timeBase`。
+
+Python 辅助库可包括 `numpy`、`scipy`、`librosa`、`soundfile` 与 `opencv-python`，用于质量特征计算。FFmpeg / FFprobe 负责媒体工程处理，Python 库负责质量特征计算；本阶段只确定技术方向，不写死具体依赖版本。
+
+## 6. 音频预处理
+
+输入支持已 Freeze 的 `m4a`、`aac`、`wav` 以及视频中的音轨，真实支持情况以解码结果为准，而不是文件后缀。标准输出为 WAV、PCM、Mono、44.1 kHz，建议 codec 为 `pcm_s16le`。
+
+```text
+读取原始媒体
+↓
+识别真实音轨
+↓
+检查是否可解码
+↓
+提取音频
+↓
+统一为 Mono
+↓
+统一为 44.1 kHz
+↓
+基础音量检查
+↓
+保守降噪
+↓
+静音和削波检查
+↓
+输出标准 WAV
+```
+
+## 7. 降噪原则
+
+第一版只做保守降噪，不得音高校正、节奏修正、删除错误音、过度去除小提琴泛音，也不得使用明显改变起音时间的激进处理。
+
+建议同时保留标准化未降噪音频和轻度降噪分析音频。下游默认读取轻度降噪版本，必要时可回退至标准化原音。
+
+## 8. 音频质量检测
+
+至少检测 RMS 音量、Peak 音量、动态范围、静音比例、削波比例、环境噪声、时长、解码稳定性和时间轴连续性。Warning Code 包括：
+
+- `audio_volume_too_low`
+- `audio_clipping_detected`
+- `background_noise_high`
+- `audio_silence_excessive`
+- `audio_duration_invalid`
+- `audio_decode_unstable`
+- `audio_track_missing`
+- `audio_timeline_discontinuous`
+
+具体阈值由工程配置和测试确定，本 SPEC 不写死。
+
+## 9. 视频预处理
+
+输入支持 `mp4`、`mov`；标准输出为 MP4、H.264。预处理必须保留原始宽高比例，不拉伸、不随意裁剪、不改变人物和乐器几何比例；应纠正视频方向并保持音视频时间轴。过高分辨率可合理缩放，但不得放大小分辨率视频。
+
+## 10. 视频方向处理
+
+实际方向判断优先级为：
+
+1. FFprobe Rotation Metadata
+2. 实际 `width` / `height`
+3. 客户端方向信息（仅作辅助）
+
+纠正后必须保证演奏者方向正确、后续关键点模型可正常读取，并且不破坏音视频同步关系。
+
+## 11. 分辨率、帧率和抽帧
+
+本阶段不写死统一目标分辨率或 FPS，具体数值由后续工程测试确定。姿势分析可使用较低采样率；运弓分析需要更连续的帧序列；不得将所有视频统一降到过低帧率。
+
+预处理输出包括标准化视频、质量检测采样帧和带时间戳的 Frame Index。Frame Index 至少包括 `frameIndex`、`timestampSecond`、`sourceFrameNumber`，不得只输出没有时间戳的图片序列。
+
+## 12. 视频质量检测
+
+基础检测包括平均亮度、过暗比例、过曝比例、模糊比例、黑屏比例、冻结帧或重复帧、严重画面抖动、人体是否存在、身体关键区域是否基本可见、小提琴是否基本可见，以及琴弓是否在足够帧中可见。
+
+此处只判断是否具备分析条件，不得输出持琴姿势是否正确、弓线是否正确、运弓是否稳定或肩部姿势问题。
+
+Video Warning Code 包括：
+
+- `video_too_dark`
+- `video_overexposed`
+- `video_blurry`
+- `video_unstable`
+- `video_orientation_corrected`
+- `person_not_detected`
+- `person_partially_visible`
+- `violin_not_visible`
+- `bow_not_visible`
+- `video_frames_incomplete`
+- `video_duration_invalid`
+- `video_decode_unstable`
+
+`bow_not_visible` 只表示琴弓在视频中不可见或可见帧不足，属于媒体可分析性提醒；不得与运弓模块对弓线和轨迹的技术评价混用。
+
+## 13. 音视频时间轴
+
+统一使用相对于练习开始的 `0.000` 秒。分别记录原始起始时间、原始时长、标准化后时长、时间偏移、是否裁剪、是否补齐及时间轴是否连续。
+
+至少检查音频与视频时长差、起始时间差、音轨是否晚于视频、异常空白头、时间跳变及标准化后时间轴连续性。第一版只做基础检查和轻量纠正。
+
+严重不同步时，音频模块和视频模块仍可独立执行，跨模块时间关联必须产生 Warning，不得伪造精确同步关系。
+
+## 14. Media Quality Report
+
+统一输出 `qualityReport`：
+
+```text
+audio: status, durationSeconds, sampleRate, channels, rmsDb, peakDb,
+       silenceRatio, clippingRatio, warnings
+video: status, durationSeconds, width, height, frameRate, orientation,
+       darkFrameRatio, blurFrameRatio, personVisibility, violinVisibility,
+       bowVisibility, warnings
+synchronization: status, durationDifferenceSeconds, warnings
+```
+
+媒体内部质量状态统一为 `usable`、`usable_with_warnings`、`insufficient_data`、`unusable`。这些属于 AI Service 内部质量状态，不修改外部 API 状态机。
+
+## 15. Module Eligibility
+
+预处理必须明确返回 `pitch`、`rhythm`、`posture`、`bowing` 的 `eligible` 与 `reasonCodes`。
+
+- Pitch：音频可解码、存在有效声音、时长基本有效、音量非严重过低、噪声未达到完全不可用且曲谱基准数据存在。
+- Rhythm：音频可解码、可检测足够起音信息、时间轴连续、曲谱节奏基准存在且静音比例没有严重异常。
+- Posture：视频可解码、方向正确、演奏者存在、关键身体区域基本可见且亮度、清晰度基本可用。
+- Bowing：视频可解码、演奏者和小提琴可见、琴弓在足够连续帧中可见、帧率和清晰度基本满足轨迹分析且画面没有长期遮挡。
+
+若音频可用、视频不可用，Pitch 与 Rhythm 执行，Posture 与 Bowing 跳过；主任务可进入既有 `partially_completed`，不应直接 `failed`。
+
+## 16. 统一输出契约
+
+`media_preprocessing` 输出保持 Phase 7.1 Module Contract，包括 `module`、`status`、`score`、`rating`、`confidence`、`issues`、`warnings`、`rawResult`、`outputs`、`qualityReport`、`moduleEligibility` 和 `runtimeMetadata`。
+
+该模块不对用户演奏评分，因此 `score = null`、`rating = null`。`outputs` 的内部引用可包括：
+
+- audio：`normalizedUri`、`denoisedUri`、`format`、`codec`、`sampleRate`、`channels`、`durationSeconds`
+- video：`normalizedUri`、`format`、`codec`、`width`、`height`、`frameRate`、`durationSeconds`、`orientation`
+- `frameIndexUri`
+
+内部 URI 不得返回 APP。
+
+## 17. 产物和存储
+
+产物可包括原始上传文件、标准化音频、轻度降噪音频、标准化视频、抽帧索引、质量报告和调试元数据。
+
+- PostgreSQL 只保存结构化元数据和内部引用；大型媒体存放于对象存储或受控文件存储。
+- 不将完整音视频二进制写入 PostgreSQL，APP 不获得内部真实路径。
+- 媒体访问必须进行权限控制，下游 Worker 使用内部服务权限读取。
+- 临时文件必须按任务隔离、处理后清理、不与其他用户共享文件名，且不得直接使用用户原始文件名作为服务器路径。
+
+## 18. 错误和重试
+
+通常可重试的情况包括 FFmpeg 临时失败、Worker 异常退出、对象存储读取超时、临时磁盘或网络错误、服务器资源不足和结果保存失败。
+
+文件真实损坏、没有音频流、没有视频流、视频全黑、时长为零、媒体完全无法解码或画面完全不具备分析条件，通常不应重复重试；应返回明确质量状态，不得无限重试。
+
+已成功预处理产物不得被失败重试覆盖，失败重试不得删除成功产物，下游读取当前有效版本。
+
+## 19. 隐私和安全
+
+- 原始媒体默认私有，禁止使用公开访问链接。
+- 普通日志不得写入媒体完整 URL，不得向 APP 返回服务器绝对路径。
+- 调试日志不得包含完整用户身份；Worker 只能访问当前任务所需媒体。
+- 临时文件及时清理，用户媒体不得默认用于模型训练；后续训练用途必须另行获得明确授权。
+
+## 20. Phase 7.2 Freeze
+
+本阶段 Freeze：
+
+- `media_preprocessing` 职责边界及 Media Service 与 AI Worker 职责分离。
+- 不信任客户端媒体元数据。
+- 音频统一为 WAV / PCM / Mono / 44.1 kHz，视频统一为 MP4 / H.264，并纠正视频方向。
+- 不拉伸、不随意裁剪，采用保守降噪。
+- Media Quality Report、Module Eligibility、音频与视频部分可用，以及四模块根据 Eligibility 独立执行。
+- 严重不同步时不伪造同步关系。
+- 媒体文件不存入 PostgreSQL，原始媒体默认私有，用户媒体不默认用于训练。
+- 不修改数据库或 API；具体阈值、分辨率和 FPS 由后续工程测试配置。

@@ -2466,3 +2466,67 @@ AI Service 内部错误分类统一为：
 - 重试后由既有主任务流程重新计算有效模块结果和终态。
 
 每个模块结果可在内部 `runtimeMetadata` 保存 `modelName`、`modelVersion`、`ruleVersion`、`pipelineVersion` 和 `processingTimeMs`。第一版仅作为 JSONB 内部元数据，不新增数据库字段或对外 API 字段。
+
+---
+
+## Phase 7.2：Media Preprocessing Contract
+
+本章节定义 `media_preprocessing` 子任务的内部处理契约，不修改既有 Task Flow、状态机、API、Master Task / Sub Task 架构或部分成功原则。
+
+### 1. Preprocessing Input
+
+输入至少包括 `taskId`、`practiceSessionId`、`module`、`media.audio`、`media.video` 与 `execution`。媒体项可包含内部 `sourceUri`、`mediaId` 和客户端声明信息；Worker 只能从内部受控存储读取，必须自行解析真实格式和元数据，不信任客户端声明。音频或视频可单独缺失；两者均不可用时不得进入正常 AI 分析。
+
+### 2. Audio Normalization
+
+支持 `m4a`、`aac`、`wav` 及视频中的音轨，以真实解码结果为准。输出统一为 WAV / PCM / Mono / 44.1 kHz，建议使用 `pcm_s16le`。处理包含音轨识别、可解码检查、音频提取、声道和采样率统一、基础音量检查、保守降噪、静音与削波检查。
+
+保守降噪不得校正音高、节奏或错误音，不得过度去除小提琴泛音或明显改变起音时间。可同时保留标准化原音和轻度降噪分析音频。
+
+### 3. Video Normalization
+
+支持 `mp4`、`mov`，输出统一为 MP4 / H.264。必须保持宽高比例，不拉伸、不随意裁剪，不放大小分辨率视频；过高分辨率可合理缩放。
+
+方向判断优先级为 FFprobe Rotation Metadata、实际宽高、客户端方向辅助信息。输出包括标准化视频、质量检测采样帧和带 `frameIndex`、`timestampSecond`、`sourceFrameNumber` 的 Frame Index。具体分辨率与 FPS 由工程测试确定，不在本阶段写死。
+
+### 4. Media Quality Report
+
+`qualityReport` 为 AI Service 内部 JSONB 数据，至少包含：
+
+- audio：`status`、`durationSeconds`、`sampleRate`、`channels`、`rmsDb`、`peakDb`、`silenceRatio`、`clippingRatio`、`warnings`
+- video：`status`、`durationSeconds`、`width`、`height`、`frameRate`、`orientation`、`darkFrameRatio`、`blurFrameRatio`、`personVisibility`、`violinVisibility`、`bowVisibility`、`warnings`
+- synchronization：`status`、`durationDifferenceSeconds`、`warnings`
+
+内部质量状态为 `usable`、`usable_with_warnings`、`insufficient_data`、`unusable`，不修改外部 API 状态机。
+
+### 5. Module Eligibility
+
+输出 `moduleEligibility`，为 `pitch`、`rhythm`、`posture`、`bowing` 分别提供 `eligible` 与 `reasonCodes`。Pitch 与 Rhythm 依赖可用音频和对应曲谱基准；Posture 依赖方向正确、演奏者及关键身体区域可见的可用视频；Bowing 额外依赖小提琴和足够连续可见的琴弓，以及基本满足轨迹分析的帧率和清晰度。
+
+`media_preprocessing` 完成后，调度器依据 `moduleEligibility` 决定既有子任务后续进入执行、跳过或标记数据不足；不改变其既有创建时机。
+
+### 6. Timeline and Synchronization
+
+时间轴统一相对于练习开始的 `0.000` 秒，记录原始和标准化后的起始时间、时长、时间偏移、裁剪、补齐及连续性。检查音视频时长差、起始时间差、音轨晚于视频、异常空白头、时间跳变与标准化后连续性。
+
+严重不同步时，音频和视频模块仍可独立执行，跨模块时间关联写入 Warning，不得伪造精确同步关系。
+
+### 7. Preprocessing Output
+
+输出继续遵循 Phase 7.1 Contract：`module`、`status`、`score`、`rating`、`confidence`、`issues`、`warnings`、`rawResult`、`outputs`、`qualityReport`、`moduleEligibility`、`runtimeMetadata`。
+
+该模块不评估用户表现，`score = null`、`rating = null`。`outputs` 中的 `normalizedUri`、`denoisedUri`、`frameIndexUri` 等均为内部存储引用，不得作为外部 API 字段或返回 APP。
+
+### 8. Error and Retry
+
+FFmpeg 临时失败、Worker 异常退出、受控存储读取超时、临时磁盘或网络错误、资源不足及结果保存失败通常可按既有模块重试流程处理。真实损坏、缺少音视频流、全黑视频、零时长、完全无法解码或完全不具备分析条件通常不应重复重试，应返回明确质量状态。
+
+成功产物不得被失败重试覆盖，失败重试不得删除成功产物，下游始终读取当前有效版本。
+
+### 9. Partial Media Availability
+
+音频可用、视频不可用时，Pitch 与 Rhythm 可执行，Posture 与 Bowing 跳过；视频可用、音频不可用时，Posture 与 Bowing 可执行，Pitch 与 Rhythm 跳过。主任务继续遵循既有部分成功原则，可进入 `partially_completed`，不应因单类媒体不可用直接失败。
+
+### 10. Privacy and Storage
+
+原始媒体默认私有，Worker 通过内部服务权限读取当前任务所需媒体。大型媒体存放于对象存储或受控文件存储，PostgreSQL 仅保存结构化元数据和内部引用，不保存完整音视频二进制。不得使用公开链接、在普通日志写入完整媒体 URL，或向 APP 返回服务器绝对路径。临时文件必须按任务隔离并及时清理；用户媒体不默认用于模型训练。
