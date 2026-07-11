@@ -60,6 +60,16 @@ docs/06_MVP_USER_FLOW.md
 - 新增练习准备页、AI 分析中页面、练习记录详情页
 - 核心练习路径为：曲谱列表 → 曲谱详情 → 练习准备 → 横屏练习录制 → AI 分析中 → AI 分析结果 → 练习记录详情
 
+已完成数据库初版结构设计，详见：
+docs/07_DATABASE_SCHEMA.md
+
+数据库第一版采用：
+
+- PostgreSQL
+- 8 张核心表
+- 结构化字段 + JSONB 扩展字段
+- 支撑用户、曲谱、练习记录、音视频文件、AI 分析任务、AI 分析结果和 AI 反馈
+
 ### 2.3 长期目标
 
 项目长期目标不是单一软件，而是构建 AI Music Platform。
@@ -149,6 +159,7 @@ Codex 更新 GitHub 文档
 - docs/04_AI_TECHNICAL_ROUTE.md
 - docs/05_CURRENT_HANDOFF.md
 - docs/06_MVP_USER_FLOW.md
+- docs/07_DATABASE_SCHEMA.md
 
 ---
 
@@ -156,10 +167,10 @@ Codex 更新 GitHub 文档
 
 下一步建议：
 
-1. 设计数据库初版结构
-2. 设计 AI 分析任务流程
-3. 编写第一版可开发的 FEATURE SPEC
-4. 后续进入 UI/UX 页面原型设计
+1. 设计 AI 分析任务流程
+2. 编写第一版可开发的 FEATURE SPEC
+3. 后续进入 UI/UX 页面原型设计
+4. 后续细化 API 设计
 
 ---
 
