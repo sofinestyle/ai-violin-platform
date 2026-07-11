@@ -42,6 +42,9 @@ AI Violin Platform 是面向中文用户的小提琴 AI 学习与陪练平台。
 5. 技术栈采用 React Native + Expo、Python + FastAPI、PostgreSQL、Python AI 服务。
 6. 第一版使用少量内置曲谱验证。
 
+已确认 MVP 用户流程和 APP 页面结构，详见：
+docs/06_MVP_USER_FLOW.md
+
 ### 2.3 长期目标
 
 项目长期目标不是单一软件，而是构建 AI Music Platform。
@@ -130,6 +133,7 @@ Codex 更新 GitHub 文档
 - docs/03_SYSTEM_ARCHITECTURE.md
 - docs/04_AI_TECHNICAL_ROUTE.md
 - docs/05_CURRENT_HANDOFF.md
+- docs/06_MVP_USER_FLOW.md
 
 ---
 
@@ -137,11 +141,11 @@ Codex 更新 GitHub 文档
 
 下一步建议：
 
-1. 细化 MVP 用户流程
-2. 设计 APP 页面结构
-3. 设计数据库初版结构
-4. 设计 AI 分析任务流程
-5. 编写第一版可开发的 FEATURE SPEC
+1. 设计 APP 信息架构和页面跳转关系
+2. 设计数据库初版结构
+3. 设计 AI 分析任务流程
+4. 编写第一版可开发的 FEATURE SPEC
+5. 后续进入 UI/UX 页面原型设计
 
 ---
 
