@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## 2026-07-11｜Phase 6.2 第一部分
+
+### 更新
+
+- docs/03_SYSTEM_ARCHITECTURE.md
+- docs/08_AI_ANALYSIS_TASK_FLOW.md
+- docs/05_CURRENT_HANDOFF.md
+- CHANGELOG.md
+
+### Freeze
+
+- 采用资源 API，不采用页面 API
+- Auth 与 Users 分离
+- Access Token + Refresh Token
+- 手机号或邮箱加密码注册、登录
+- 注册成功后直接返回登录凭证
+- Token 刷新和退出机制
+- 当前登录用户查询
+- 密码重置
+- 用户本人资料查询和修改
+- 学习阶段通过 PATCH /api/v1/users/me 修改
+- 密码使用独立接口修改
+- 用户只能访问本人数据
+
 ## 2026-07-11｜Phase 6.1
 
 ### 更新

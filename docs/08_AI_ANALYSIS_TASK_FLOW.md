@@ -660,3 +660,362 @@ GET
 - Bearer Token
 - JSON camelCase
 - DB snake_case
+
+---
+
+## 19. 业务资源 API 设计
+
+### 19.1 资源 API 原则
+
+- API 围绕业务资源设计。
+- 页面不作为 API 的一级资源。
+- APP 页面可以组合多个资源 API。
+- 第一阶段不设计首页专用 API、练习页专用 API 或结果页专用 API。
+- 后续新增终端时优先复用现有资源接口。
+
+### 19.2 Auth 与 Users 的职责边界
+
+Auth 负责：
+
+- 注册
+- 登录
+- 登出
+- Token 刷新
+- 当前登录身份
+- 密码重置
+
+Users 负责：
+
+- 用户资料
+- 昵称
+- 头像
+- 学习阶段
+- 练习目标
+- 密码修改
+- 后续手机号、邮箱修改
+
+账号认证信息与学习资料分离管理。
+
+### 19.3 Auth API 设计
+
+统一前缀：
+
+`/api/v1/auth`
+
+#### 19.3.1 注册
+
+`POST /api/v1/auth/register`
+
+请求字段：
+
+```json
+{
+  "phone": "13800138000",
+  "email": null,
+  "password": "用户输入的密码"
+}
+```
+
+规则：
+
+- phone 和 email 至少有一个。
+- 手机号和邮箱不能都为空。
+- 手机号或邮箱不得重复注册。
+- 密码不得明文保存。
+- 后端仅保存 password_hash。
+- 注册成功后直接返回登录凭证，无需再次登录。
+
+返回数据至少包括：
+
+- user
+- accessToken
+- refreshToken
+- expiresIn
+
+#### 19.3.2 登录
+
+`POST /api/v1/auth/login`
+
+请求：
+
+```json
+{
+  "account": "13800138000",
+  "password": "用户输入的密码"
+}
+```
+
+account 可以是手机号或邮箱。
+
+返回至少包括：
+
+- user
+- accessToken
+- refreshToken
+- expiresIn
+
+登录失败统一提示：
+
+账号或密码错误
+
+不得通过错误信息明确暴露账号是否存在。
+
+#### 19.3.3 刷新 Token
+
+`POST /api/v1/auth/refresh-token`
+
+请求：
+
+```json
+{
+  "refreshToken": "xxx"
+}
+```
+
+返回：
+
+- accessToken
+- refreshToken
+- expiresIn
+
+第一版使用 Access Token + Refresh Token。Access Token 有效期较短，Refresh Token 有效期较长；刷新时建议轮换 Refresh Token。具体有效期后续由工程配置确定，本阶段不写死。
+
+#### 19.3.4 退出登录
+
+`POST /api/v1/auth/logout`
+
+规则：
+
+- 使当前 Refresh Token 失效。
+- APP 删除本地 Token。
+- 退出后不能继续通过旧 Refresh Token 续期。
+
+#### 19.3.5 查询当前登录身份
+
+`GET /api/v1/auth/me`
+
+用途：
+
+- APP 启动时检查登录状态。
+- 获取当前账号状态。
+- 判断用户是否已完成学习资料。
+- 判断是否需要进入学习阶段选择页。
+
+返回至少包括：
+
+- id
+- phone
+- email
+- status
+- profileCompleted
+
+#### 19.3.6 发起密码重置
+
+`POST /api/v1/auth/password-reset/request`
+
+输入手机号或邮箱。
+
+正式上线前接入短信或邮件服务；本地开发阶段允许使用模拟验证码。
+
+#### 19.3.7 确认密码重置
+
+`POST /api/v1/auth/password-reset/confirm`
+
+请求至少包括：
+
+- resetToken 或 verificationCode
+- newPassword
+
+### 19.4 Users API 设计
+
+统一前缀：
+
+`/api/v1/users`
+
+第一版只允许用户访问和修改本人数据。
+
+#### 19.4.1 查询我的资料
+
+`GET /api/v1/users/me`
+
+返回至少包括：
+
+- id
+- nickname
+- avatarUrl
+- learningStage
+- practiceGoal
+- totalPracticeDays
+- totalPracticeSeconds
+- createdAt
+- updatedAt
+
+该接口可以组合 users、user_profiles 两张表的数据。前端无需知道数据库内部表结构。
+
+#### 19.4.2 修改我的普通资料
+
+`PATCH /api/v1/users/me`
+
+允许修改：
+
+- nickname
+- avatarUrl
+- learningStage
+- practiceGoal
+
+不允许修改：
+
+- id
+- phone
+- email
+- password
+- status
+- totalPracticeDays
+- totalPracticeSeconds
+
+请求示例：
+
+```json
+{
+  "nickname": "茂",
+  "learningStage": "beginner",
+  "practiceGoal": "每天练习20分钟"
+}
+```
+
+#### 19.4.3 学习阶段处理
+
+第一版不新增：
+
+`PATCH /api/v1/users/learning-stage`
+
+学习阶段直接通过：
+
+`PATCH /api/v1/users/me`
+
+修改。
+
+现有资源接口已经可以承载，避免重复接口和需求扩张。
+
+#### 19.4.4 修改密码
+
+`PATCH /api/v1/users/me/password`
+
+请求：
+
+```json
+{
+  "currentPassword": "旧密码",
+  "newPassword": "新密码"
+}
+```
+
+规则：
+
+- 必须验证当前密码。
+- 修改成功后旧 Refresh Token 失效。
+- 新密码必须符合密码安全规则。
+
+#### 19.4.5 手机号和邮箱修改
+
+保留接口概念：
+
+- `PATCH /api/v1/users/me/phone`
+- `PATCH /api/v1/users/me/email`
+
+当前阶段只记录接口预留，不要求 MVP 立即实现。
+
+修改手机号、邮箱需要验证码和安全验证，不能通过普通资料接口直接修改。
+
+### 19.5 第一版认证范围
+
+第一版支持：
+
+- 手机号 + 密码注册
+- 邮箱 + 密码注册
+- 手机号或邮箱 + 密码登录
+- Access Token
+- Refresh Token
+- Token 刷新
+- 退出登录
+- 查询当前登录用户
+- 密码重置
+- 用户资料查询和修改
+
+第一版暂不支持：
+
+- 微信登录
+- Apple ID 登录
+- Google 登录
+- 短信验证码直接登录
+- 人脸登录
+- 教师账号
+- 机构账号
+- 管理员角色体系
+- 多设备管理页面
+
+不得自行扩展上述范围。
+
+### 19.6 认证流程
+
+```text
+用户注册或登录
+↓
+Auth 返回 Access Token 和 Refresh Token
+↓
+APP 保存登录凭证
+↓
+APP 携带 Access Token 调用受保护接口
+↓
+GET /api/v1/auth/me
+↓
+判断账号状态和 profileCompleted
+↓
+GET /api/v1/users/me
+↓
+如果 learningStage 为空
+↓
+进入学习阶段选择页
+↓
+PATCH /api/v1/users/me
+↓
+保存 learningStage
+↓
+进入首页
+```
+
+### 19.7 错误码
+
+Auth 和 Users 错误码如下：
+
+| 错误码 | 含义 |
+|---|---|
+| 1001 | 请求参数错误 |
+| 1002 | 未登录 |
+| 1003 | Access Token 已失效 |
+| 1004 | 无权限 |
+| 1101 | 手机号或邮箱已注册 |
+| 1102 | 账号或密码错误 |
+| 1103 | 账号已停用 |
+| 1104 | Refresh Token 无效或已过期 |
+| 1105 | 当前密码错误 |
+| 1106 | 密码格式不符合要求 |
+| 1107 | 验证码无效或已过期 |
+| 1201 | 用户资料不存在 |
+| 5000 | 系统异常 |
+
+上述错误码不与 Phase 6.1 已定义的统一错误码冲突。
+
+### 19.8 安全规则
+
+- 密码必须安全哈希保存。
+- 不得明文存储密码。
+- Token 不得写入日志。
+- 正式环境必须使用 HTTPS。
+- 登录接口必须限制高频失败尝试。
+- 用户只能访问和修改本人资料。
+- Refresh Token 必须支持失效和撤销。
+- 修改密码后旧 Refresh Token 必须失效。
+- 手机号、邮箱根据使用场景进行脱敏。
+- 登录错误不得暴露账号是否存在。
+- 不得在 API 返回中输出 password_hash。

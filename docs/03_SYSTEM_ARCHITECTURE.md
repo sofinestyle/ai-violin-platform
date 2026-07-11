@@ -247,3 +247,43 @@ APP 查询并展示结果
 - /analysis/feedbacks
 
 每组保持职责单一。
+
+### 11.4 资源 API 原则
+
+系统 API 采用资源导向设计，不采用页面导向设计。
+
+API 围绕以下业务资源组织：
+
+- auth
+- users
+- scores
+- practice-sessions
+- practice-media
+- analysis-tasks
+- analysis-results
+- analysis-feedbacks
+
+页面根据业务需要组合多个资源接口。
+
+例如，练习记录详情页可以组合：
+
+- practice-session
+- practice-media
+- analysis-result
+- analysis-feedback
+
+不得为每个页面单独设计：
+
+- home-api
+- practice-page-api
+- result-page-api
+
+采用资源 API 的原因：
+
+- 页面会变化，资源相对稳定。
+- APP、Web 后台、教师端、家长端和未来硬件可以复用。
+- 降低重复开发。
+- 避免接口随页面增加而失控。
+- 与 RESTful API 规范一致。
+
+资源 API 是 Phase 6.2 已确认架构原则。

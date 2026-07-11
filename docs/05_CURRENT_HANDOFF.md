@@ -17,7 +17,7 @@
 
 当前处于：
 
-> Phase 6.1：API 规范设计已完成并 Freeze
+> Phase 6.2 第一部分：Auth + Users API 设计已完成并 Freeze
 
 ---
 
@@ -106,7 +106,24 @@ docs/07_DATABASE_SCHEMA.md
 - 上传规范
 - Polling
 
-### 2.6 长期目标
+### 2.6 Phase 6.2 第一部分已完成内容
+
+- 资源 API 原则
+- Auth 与 Users 职责分离
+- Access Token + Refresh Token
+- 注册接口
+- 登录接口
+- Token 刷新接口
+- 退出登录接口
+- 当前登录用户接口
+- 密码重置接口
+- 用户资料查询接口
+- 用户资料修改接口
+- 密码修改接口
+- 认证错误码
+- 认证安全规则
+
+### 2.7 长期目标
 
 项目长期目标不是单一软件，而是构建 AI Music Platform。
 
@@ -121,7 +138,7 @@ docs/07_DATABASE_SCHEMA.md
 
 ---
 
-### 2.7 工作方式
+### 2.8 工作方式
 
 项目采用文档驱动开发：
 
@@ -141,7 +158,7 @@ Codex 开发
 
 ---
 
-### 2.8 角色分工
+### 2.9 角色分工
 
 项目经理：用户本人。
 
@@ -165,7 +182,7 @@ Codex 承担：
 
 ---
 
-### 2.9 文档管理方式
+### 2.10 文档管理方式
 
 由于 ChatGPT 对话会被自动压缩，因此后续以 GitHub 中的 Markdown 文档作为项目长期记忆。
 
@@ -206,7 +223,7 @@ Codex 更新 GitHub 文档
 
 下一阶段为：
 
-> Phase 6.2：业务 API Interface Design
+> Phase 6.2 第二部分：Scores API 设计
 
 ---
 
