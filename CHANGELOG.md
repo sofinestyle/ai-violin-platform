@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-07-11｜Phase 5.2
+
+### 更新
+
+- docs/08_AI_ANALYSIS_TASK_FLOW.md
+- docs/03_SYSTEM_ARCHITECTURE.md
+- docs/04_AI_TECHNICAL_ROUTE.md
+- docs/05_CURRENT_HANDOFF.md
+
+### Freeze
+
+- AI Pipeline
+- Pipeline Layer
+- Output Protocol
+- LLM Responsibility
+- Confidence Strategy
+
 ## 2026-07-11｜Phase 5.1
 
 ### 新增

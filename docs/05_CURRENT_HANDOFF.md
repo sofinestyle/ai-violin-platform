@@ -17,7 +17,7 @@
 
 当前处于：
 
-> Phase 5.1：AI 分析任务流程设计已完成并 Freeze
+> Phase 5.2：AI Pipeline 设计已完成并 Freeze
 
 ---
 
@@ -84,7 +84,15 @@ docs/07_DATABASE_SCHEMA.md
 - APP 退出后后台继续分析
 - 项目永久工作流
 
-### 2.4 长期目标
+### 2.4 Phase 5.2 已完成内容
+
+- AI Pipeline
+- 曲谱基准数据层
+- Pipeline 分层
+- AI 输出协议
+- LLM 职责
+
+### 2.5 长期目标
 
 项目长期目标不是单一软件，而是构建 AI Music Platform。
 
@@ -99,7 +107,7 @@ docs/07_DATABASE_SCHEMA.md
 
 ---
 
-### 2.5 工作方式
+### 2.6 工作方式
 
 项目采用文档驱动开发：
 
@@ -119,7 +127,7 @@ Codex 开发
 
 ---
 
-### 2.6 角色分工
+### 2.7 角色分工
 
 项目经理：用户本人。
 
@@ -143,7 +151,7 @@ Codex 承担：
 
 ---
 
-### 2.7 文档管理方式
+### 2.8 文档管理方式
 
 由于 ChatGPT 对话会被自动压缩，因此后续以 GitHub 中的 Markdown 文档作为项目长期记忆。
 
@@ -184,7 +192,7 @@ Codex 更新 GitHub 文档
 
 下一阶段为：
 
-> Phase 5.2：AI Pipeline 设计
+> Phase 6：API Interface Design
 
 ---
 

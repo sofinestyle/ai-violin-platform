@@ -100,6 +100,16 @@ AI 服务可拆分为：
 
 第一阶段实现音频分析、AI 反馈、姿势识别和运弓分析；视频类能力以基础反馈为目标，后续持续提升精度。
 
+AI 服务进一步划分：
+
+- Media Service
+- Audio Analysis Service
+- Video Analysis Service
+- Aggregation Service
+- Feedback Service
+
+AI 服务采用流水线（Pipeline）架构。以后新增分析模块时，只新增 Pipeline，不修改总体架构。
+
 ---
 
 ## 6. 数据库模块

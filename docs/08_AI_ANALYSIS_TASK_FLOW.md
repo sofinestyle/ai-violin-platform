@@ -312,3 +312,197 @@ practice_sessions.status 使用：
 - 单模块重试
 - APP 退出后任务继续执行
 - 状态机
+
+---
+
+## 17. AI Pipeline 分层设计
+
+### 17.1 Pipeline 总体结构
+
+```text
+APP 数据采集
+↓
+媒体接入层
+↓
+媒体预处理层
+↓
+曲谱基准数据层
+↓
+音频分析 Pipeline
+↓
+视频分析 Pipeline
+↓
+结果标准化层
+↓
+结果汇总层
+↓
+AI 反馈生成层
+↓
+结果存储
+↓
+APP 展示
+```
+
+### 17.2 APP 数据采集层
+
+输入：
+
+- scoreId
+- userId
+- learningStage
+- audioFile
+- videoFile
+- videoOrientation
+- durationSeconds
+
+输出：
+
+统一 Practice Session 数据。
+
+### 17.3 媒体接入层
+
+FastAPI 负责：
+
+- 用户权限校验
+- 创建 practice_session
+- 创建 practice_media
+- 创建 AI Master Task
+- 投递异步任务
+
+### 17.4 媒体预处理层
+
+音频：
+
+- 格式统一
+- 提取
+- 降噪
+- 采样率统一
+- 声道统一
+
+视频：
+
+- 方向修正
+- 抽帧
+- 帧率统一
+- 完整性检查
+- 时间轴同步
+
+### 17.5 曲谱基准数据层
+
+第一版所有内置曲谱必须提前生成结构化标准数据。
+
+例如：
+
+- Tempo
+- Time Signature
+- MIDI
+- Note Timeline
+- Measure
+- Beat
+
+第一版不实时解析任意曲谱图片。
+
+### 17.6 音频分析 Pipeline
+
+音准：
+
+```text
+Audio
+↓
+Pitch Detection
+↓
+Note Segmentation
+↓
+Timeline Alignment
+↓
+Pitch Evaluation
+↓
+Pitch Result
+```
+
+节奏：
+
+```text
+Audio
+↓
+Onset Detection
+↓
+Timeline Alignment
+↓
+Rhythm Evaluation
+↓
+Rhythm Result
+```
+
+### 17.7 视频分析 Pipeline
+
+姿势：
+
+```text
+Video
+↓
+Body Keypoints
+↓
+Hand Keypoints
+↓
+Rule Evaluation
+↓
+Posture Result
+```
+
+运弓：
+
+```text
+Video
+↓
+Bow Tracking
+↓
+Trajectory Analysis
+↓
+Rule Evaluation
+↓
+Bowing Result
+```
+
+### 17.8 统一输出协议
+
+所有 AI 模块必须输出统一 JSON。
+
+至少包括：
+
+- module
+- status
+- score
+- rating
+- confidence
+- issues
+- warnings
+- rawResult
+
+以后所有 AI 模型必须遵守统一输出协议。
+
+### 17.9 LLM 使用原则
+
+GPT（或其他 LLM）不能直接分析音视频。
+
+LLM 仅负责：
+
+- 总结
+- 解释
+- 鼓励
+- 练习建议
+
+输入必须来自结构化分析结果。
+
+### 17.10 Pipeline Freeze
+
+本阶段冻结结论：
+
+- Pipeline 分层
+- 曲谱基准数据层
+- 音频 Pipeline
+- 视频 Pipeline
+- 标准输出协议
+- LLM 职责
+- Confidence 输出
+- Warning 输出
