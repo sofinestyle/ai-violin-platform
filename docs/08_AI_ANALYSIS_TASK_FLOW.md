@@ -2564,3 +2564,39 @@ Pitch Score 综合准确率、偏差比例、错音、漏音、多余音和稳�
 ### Pitch Retry
 
 临时模型异常、受控存储读取超时、Worker 异常退出或结果保存失败可按既有单模块重试流程处理。音频完全不可解码、无有效声音、曲谱基准缺失或检测到不支持的多声部时，应返回明确的 `insufficient_data`、Issue 或 Warning，不得无限重试。成功结果不得被失败重试覆盖。
+
+---
+
+## Phase 7.4：Rhythm Analysis Contract
+
+本章节定义 Rhythm Analysis 的内部处理契约，不修改 API、状态机、数据库或主 Pipeline。
+
+### Rhythm Input
+
+输入至少包括 `normalizedAudio`、`score_notes`、`score_measures`、`tempoReference`、`qualityContext`、`executionContext`。模块只读取 Media Preprocessing 的标准化音频，不得读取客户端原始媒体。
+
+### Beat Tracking
+
+模块执行 Onset Detection、Beat Tracking、Downbeat 识别与 Tempo Drift 分析。算法可替换，但输出协议必须保持一致；第一版曲谱节拍仅支持 `4/4`、`3/4`、`2/4`、`6/8`。
+
+### Tempo Estimation
+
+输出 Estimated BPM、Tempo Stability、Tempo Drift，并区分用户 Tempo 与 Score Tempo。
+
+### Rhythm Alignment
+
+Rhythm 与 `score_notes` 基于 BPM、Time Signature、Measure、Beat、Expected Start、Expected Duration 进行序列对齐。允许 DTW、DP、Sequence Alignment 或其他可替换算法。
+
+### Timing Evaluation
+
+每个音符输出 `on_time`、`early`、`late`、`missed`、`extra` 和 `timingOffsetMs`。模块同时识别连续提前、连续滞后与 Tempo 波动。
+
+### Rhythm Output
+
+输出遵循 Phase 7.1 Module Contract，包含 `status`、`score`、`rating`、`confidence`、`issues`、`warnings`、`rawResult`、`runtimeMetadata`。Issue Code 为 `rhythm_early`、`rhythm_late`、`rhythm_unstable`、`missed_beat`、`extra_beat`、`tempo_drift`；Warning Code 为 `beat_tracking_low_confidence`、`noisy_audio`、`insufficient_onset`、`tempo_unstable`、`unsupported_time_signature`。
+
+`confidence` 不得修改 `score`。`runtimeMetadata` 可记录 `modelVersion`、`pipelineVersion`、`processingTimeMs`、`onsetAlgorithm`、`tempoAlgorithm`；它属于 JSONB 内部数据，不新增数据库或外部 API 字段。
+
+### Retry Contract
+
+临时算法异常、Worker 异常退出、受控存储读取超时或结果保存失败可按既有单模块重试流程处理。音频完全不可解码、有效起音不足或不支持的拍号应返回明确 Warning 或 `insufficient_data`，不得无限重试；成功结果不得被失败重试覆盖。

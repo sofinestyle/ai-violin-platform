@@ -908,3 +908,136 @@ Pitch Score 综合准确率、偏差比例、错音、漏音、多余音和稳�
 - Pitch Score
 - Runtime Metadata
 - MVP Scope
+
+---
+
+## Phase 7.4：Rhythm Analysis（节奏分析模块）
+
+本章节定义 Rhythm Analysis 的详细设计，遵循已 Freeze 的 AI Module Contract、Media Preprocessing 与 Pitch Analysis 边界，不修改数据库、API、业务代码、主 Pipeline 或既有模块。
+
+### 1. 模块定位
+
+Rhythm Analysis 负责 Beat Detection、Onset Detection、Tempo Estimation、Rhythm Segmentation、Rhythm Alignment、Timing Evaluation、Rhythm Stability 和 Rhythm Score。
+
+该模块不负责 Pitch、Posture、Bowing 或 AI Feedback。
+
+### 2. Rhythm Pipeline
+
+```text
+Normalized Audio
+↓
+Onset Detection
+↓
+Beat Tracking
+↓
+Tempo Estimation
+↓
+Rhythm Segmentation
+↓
+Score Alignment
+↓
+Timing Evaluation
+↓
+Measure Summary
+↓
+Rhythm Result
+```
+
+### 3. 输入契约
+
+输入至少包含：
+
+- `normalizedAudio`
+- `score_notes`
+- `score_measures`
+- `tempoReference`
+- `qualityContext`
+- `executionContext`
+
+模块不得直接读取客户端原始媒体，必须使用 Media Preprocessing 的标准化音频和质量上下文。
+
+### 4. Rhythm Reference
+
+统一从曲谱基准读取 BPM、Time Signature、Measure、Beat、Expected Start 与 Expected Duration。第一版支持 `4/4`、`3/4`、`2/4`、`6/8`。
+
+### 5. Onset Detection
+
+Onset Detection 用于检测音符起始点。允许使用不同算法，但必须保持统一输出协议，供后续分段、对齐和时间评价使用。
+
+### 6. Beat Tracking
+
+统一处理 Beat、Downbeat 和 Tempo Drift。具体算法不在本阶段锁定。
+
+### 7. Tempo Estimation
+
+统一输出 Estimated BPM、Tempo Stability 和 Tempo Drift，并明确区分用户 Tempo 与 Score Tempo。
+
+### 8. Rhythm Alignment
+
+Rhythm 与 `score_notes` 进行序列对齐，可采用 DTW、DP、Sequence Alignment 或其他可替换算法。
+
+### 9. Timing Evaluation
+
+每个音符统一输出 `on_time`、`early`、`late`、`missed`、`extra` 之一，并输出 `timingOffsetMs`。
+
+### 10. Rhythm Stability
+
+分析连续提前、连续滞后、Tempo 波动与节奏稳定性。
+
+### 11. Issue Code
+
+统一 Issue Code：
+
+- `rhythm_early`
+- `rhythm_late`
+- `rhythm_unstable`
+- `missed_beat`
+- `extra_beat`
+- `tempo_drift`
+
+### 12. Warning Code
+
+统一 Warning Code：
+
+- `beat_tracking_low_confidence`
+- `noisy_audio`
+- `insufficient_onset`
+- `tempo_unstable`
+- `unsupported_time_signature`
+
+### 13. Rhythm Score
+
+统一输出 `score`、`rating`、`confidence`。`confidence` 表示分析可信度，不得修改 `score`。
+
+### 14. Runtime Metadata
+
+`runtimeMetadata` 至少包括 `modelVersion`、`pipelineVersion`、`processingTimeMs`、`onsetAlgorithm`、`tempoAlgorithm`，属于 JSONB 内部数据，不新增数据库字段或外部 API 字段。
+
+### 15. Rhythm Fusion Context
+
+预留 Rhythm Fusion Context 扩展点。第一版仅使用音频；未来可融合视频起弓动作、弓向切换等视觉信息。本阶段仅定义扩展点，不新增数据库、不修改 API。
+
+### 16. MVP Scope
+
+第一版支持单旋律、基础节奏分析、Tempo Estimation、Beat Tracking 和 Timing Evaluation。
+
+第一版不支持 Rubato、多人同步、合奏分析或专业节奏风格评价。
+
+### 17. Phase 7.4 Freeze
+
+本阶段 Freeze：
+
+- Rhythm Boundary
+- Rhythm Pipeline
+- Rhythm Reference
+- Beat Tracking
+- Tempo Estimation
+- Rhythm Alignment
+- Timing Evaluation
+- Rhythm Stability
+- Rhythm Issue Code
+- Rhythm Warning
+- Rhythm Score
+- Runtime Metadata
+- Rhythm Fusion Context
+- MVP Scope
